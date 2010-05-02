@@ -1,31 +1,9 @@
 #ifndef STATE_H
 #define STATE_H
 
-#include <malloc.h>
-#include <stdbool.h>
 #include <hashmap.h>
-
-#define DEBUG printf
-
-typedef enum {HORIZ, VERT} orientation;
-typedef enum {EAST, WEST, NORTH, SOUTH} direction;
-
-typedef struct coord {
-	int x;
-	int y;
-} coord_t;
-
-typedef struct range {
-	orientation o;
-	int min;
-	int max;
-	int bound;
-} range_t;
-
-typedef struct range_list {
-	struct range value;
-	struct range_list *next;
-} range_list_t;
+#include <common.h>
+#include <math.h>
 
 typedef struct state {
   struct state *prev;
@@ -159,20 +137,54 @@ void put_range(range_list_t **list_handle, int bound, state_t *S, orientation o)
 bool state_equal(state_t *A, state_t *B) {
   if (A->num_bits != B->num_bits)
     return false;
+  return coord_set_equal(A->bits, B->bits, A->num_bits);
+}
+
+int score(state_t *S, state_t *end) {
+  int num_bits = S->num_bits;
+  int bp = 0, hp = 0;
   bool ok;
-  int max = A->num_bits;
-	for (int i=0; i < max; i++) {
+  coord_t extras[num_bits];
+  coord_t holes[num_bits];
+  for (int i=0; i < num_bits; i++) {
+    coord_t e = end->bits[i];
     ok = false;
-    for (int j=0; j < max; j++) {
-      if (B->bits[j].x == A->bits[i].x && B->bits[j].y == A->bits[i].y) {
+    for (int j=0; j < num_bits; j++) {
+      coord_t s = S->bits[i];
+      if (s.x == e.x && s.y == e.y) {
         ok = true;
         break;
       }
     }
     if (!ok)
-      return false;
+      holes[bp++] = e;
   }
-  return true;
+  for (int i=0; i < num_bits; i++) {
+    coord_t s = S->bits[i];
+    ok = false;
+    for (int j=0; j < num_bits; j++) {
+      coord_t e = end->bits[i];
+      if (s.x == e.x && s.y == e.y) {
+        ok = true;
+        break;
+      }
+    }
+    if (!ok)
+      extras[hp++] = s;
+  }
+
+  double squarediff = 0;
+
+  for (int i=0; i < hp; i++) {
+    for (int j=0; j < hp; j++) {
+      squarediff += (holes[i].x - extras[j].x) * (holes[i].x - extras[j].x);
+      squarediff += (holes[i].y - extras[j].y) * (holes[i].y - extras[j].y);
+    }
+  }
+
+  squarediff = sqrt(squarediff);
+
+  return (int)squarediff;
 }
 
 analysis_t *analyze_state(state_t *S) {

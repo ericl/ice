@@ -4,7 +4,7 @@
 #include <state.h>
 #include <string.h>
 
-#define QUEUE_DEFAULT_CAPACITY 1000
+#define QUEUE_DEFAULT_CAPACITY 100
 
 typedef struct queue {
 	state_t **storage;
@@ -35,11 +35,8 @@ bool isempty(queue_t *queue) {
 
 void add(queue_t *queue, state_t *state) {
 	if (queue->head - queue->storage >= queue->capacity) {
-		int steps_back = queue->tail - queue->storage;
-		memmove(queue->storage, queue->tail, queue->head - queue->tail);
-		queue->head -= steps_back;
-		queue->tail -= steps_back;
-		int headpos = queue->head - queue->storage;
+		memmove(queue->storage, queue->tail, (queue->head - queue->tail)*sizeof(state_t*));
+		int headpos = queue->head - queue->tail;
 		queue->capacity *= 2;
 		queue->storage = realloc(queue->storage, queue->capacity*sizeof(state_t*));
 		queue->head = queue->storage + headpos;

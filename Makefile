@@ -1,4 +1,4 @@
 default:
-	gcc -pthread -g -I. -Wall -std=c99 *.c -o ice
+	gcc -pthread -lm -g -I. -Wall -std=c99 *.c -o ice
 clean:
 	rm ice

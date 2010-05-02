@@ -1,60 +1,85 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <state.h>
-#include <queue.h>
+#include <pqueue.h>
 
 state_t *ReadPBM(char *, int *, int *);
 void print_state(state_t *);
 void print_analysis(analysis_t *);
 
-void print_history(state_t *S) {
+void print_history(state_t *S, state_t *end, int offset) {
   if (!S || !S->prev)
     return;
-  print_history(S->prev);
+  print_history(S->prev, end, offset);
+#ifdef DEBUG
+  printf("s=%d, ", score(S, end) - offset);
+#endif
   printf("%s\n", S->history);
 }
 
 int main(int argc, char *argv[])
 {
+#ifdef DEBUG
+  printf("*** DEBUG DEFINED ***\n");
+#endif
   int xMax, yMax;
   state_t *start, *end;
+  hashmap_t *map = create_hashmap();
 
   start = ReadPBM(argv[1], &xMax, &yMax);
   end = ReadPBM(argv[2], &xMax, &yMax); // assume same size arrays
 
-  int num_next;
-  queue_t *queue = construct_queue();
-  add(queue, start);
+  int offset = score(start, end);
 
-  int perm = 0, added = 0, discard = 0;
-  while (!isempty(queue)) {
-    state_t *next = possible_next_states(take(queue), &num_next);
+  int num_next;
+  pqueue_t *pq = construct_pqueue();
+
+  int perm = 0, added = 0, discard = 0, duplicate = 0;
+
+  analysis_t *A = analyze_state(start);
+  if (can_reach_state(A, end))
+    pq_add(pq, start, 0);
+  if (state_equal(start, end))
+    goto out;
+
+  while (!pq_isempty(pq)) {
+    state_t *next = possible_next_states(pq_take(pq), &num_next);
     perm++;
     for (int i=0; i < num_next; i++) {
       if (state_equal(next + i, end)) {
-        print_history(next + i);
+        print_history(next + i, end, offset);
         goto out;
       }
-      analysis_t *A = analyze_state(next + i);
-      if (can_reach_state(A, end)) {
-        state_t *to_be_added = malloc(sizeof(state_t));
-        memcpy(to_be_added, A->state, sizeof(state_t));
-        add(queue, to_be_added);
-        added++;
+      if (put(map, (next + i)->bits, (next + i)->num_bits)) {
+        duplicate++;
       } else {
-        discard++;
+        A = analyze_state(next + i);
+        if (can_reach_state(A, end)) {
+          state_t *to_be_added = malloc(sizeof(state_t));
+          memcpy(to_be_added, A->state, sizeof(state_t));
+          pq_add(pq, to_be_added, score(to_be_added, end) - offset);
+          added++;
+        } else {
+          discard++;
+        }
+        free_list(A->ranges);
+        free(A);
       }
-      free_list(A->ranges);
-      free(A);
     }
     free(next);
   }
   printf("IMPOSSIBLE\n");
 
   out:
+#ifdef DEBUG
   printf("%d states tried\n", perm);
-  printf("%d branches eliminated\n", discard);
+  printf("%d invalid branches eliminated\n", discard);
+  printf("%d duplicate branches eliminated\n", duplicate);
   printf("%d states still queued\n", added - perm + 1);
+  printf("%d is max hash table load\n", map->maxlen);
+  printf("%d is hash table size\n", map->size);
+  printf("%d is depth of priority queue\n", pq_stat_list_depth(pq));
+#endif
   return 0;
 }
 
