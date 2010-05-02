@@ -297,21 +297,25 @@ state_t *possible_next_states(state_t *S, int *num_states) {
     if (next) {
       replace_bit(S, bit, *next, pos++, WEST);
       *num_states = *num_states + 1;
+      free(next);
     }
     bit_dir(S, bit, &next, EAST);
     if (next) {
       replace_bit(S, bit, *next, pos++, EAST);
       *num_states = *num_states + 1;
+      free(next);
     }
     bit_dir(S, bit, &next, NORTH);
     if (next) {
       replace_bit(S, bit, *next, pos++, NORTH);
       *num_states = *num_states + 1;
+      free(next);
     }
     bit_dir(S, bit, &next, SOUTH);
     if (next) {
       replace_bit(S, bit, *next, pos++, SOUTH);
       *num_states = *num_states + 1;
+      free(next);
     }
   }
   return states;

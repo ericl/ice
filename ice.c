@@ -37,7 +37,9 @@ int main(int argc, char *argv[])
       }
       analysis_t *A = analyze_state(next + i);
       if (can_reach_state(A, end)) {
-        add(queue, A->state);
+        state_t *to_be_added = malloc(sizeof(state_t));
+        memcpy(to_be_added, A->state, sizeof(state_t));
+        add(queue, to_be_added);
         added++;
       } else {
         discard++;
@@ -45,6 +47,7 @@ int main(int argc, char *argv[])
       free_list(A->ranges);
       free(A);
     }
+    free(next);
   }
   printf("IMPOSSIBLE\n");
 
