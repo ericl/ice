@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <state.h>
+#include <queue.h>
 
 state_t *ReadPBM(char *, int *, int *);
 void print_state(state_t *);
@@ -29,12 +30,38 @@ int main(int argc, char *argv[])
   start = ReadPBM(argv[1], &xMax, &yMax);
   end   = ReadPBM(argv[2], &xMax, &yMax); // assume same size arrays
 
+  printf("start: ");
   print_state(start);
-  print_state(end);
   A = analyze_state(start);
-  print_analysis(A);
-  printf("%s\n", prettyb(can_reach_state(A, end)));
 
+  int num_next;
+  queue_t *queue = construct_queue();
+  add(queue, start);
+
+  int perm = 0, added = 0, discard = 0;
+  while (!isempty(queue)) {
+    state_t *next = possible_next_states(take(queue), &num_next);
+    perm++;
+    for (int i=0; i < num_next; i++) {
+      if (state_equal(next + i, end)) {
+        print_state(next + i);
+        goto out;
+      }
+      A = analyze_state(next + i);
+      if (can_reach_state(A, end)) {
+        add(queue, A->state);
+        added++;
+      } else {
+        discard++;
+      }
+    }
+  }
+  printf("IMPOSSIBLE\n");
+
+  out:
+  printf("%d states tried\n", perm);
+  printf("%d branches eliminated\n", discard);
+  printf("%d states still queued\n", added - perm);
   return 0;
 }
 
@@ -62,8 +89,10 @@ state_t *ReadPBM(char *filename, int *xMax_ptr, int *yMax_ptr)
   FILE *fp;
   char c, pbm_type[3];  // P[1-6], two characters. We assume P1 (bitmap)
   state_t *init_state = malloc(sizeof(state_t));
-  init_state->bits = malloc(100*sizeof(coord_t));
+  int size = 100;
+  init_state->bits = malloc(size*sizeof(coord_t));
   init_state->num_bits = 0;
+  init_state->history = "READ FROM FILE";
   coord_t *pos = init_state->bits;
 
   fp = fopen(filename,"r");
@@ -75,6 +104,13 @@ state_t *ReadPBM(char *filename, int *xMax_ptr, int *yMax_ptr)
     for (int x = 0; x < *xMax_ptr; x++) {
       if (((int)getc(fp)-'0')) {
         init_state->num_bits++;
+        if (init_state->num_bits >= size) {
+          printf("REALLOC\n");
+          size *= 2;
+          int diff = pos - init_state->bits;
+          init_state->bits = realloc(init_state->bits, size*sizeof(coord_t));
+          pos = init_state->bits + diff;
+        }
         pos->x = x;
         pos->y = y;
         pos++;
