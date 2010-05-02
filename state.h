@@ -180,12 +180,14 @@ int score(state_t *S, state_t *end) {
 
   for (int i=0; i < hp; i++) {
     for (int j=0; j < hp; j++) {
-      double a = (holes[i].x - extras[j].x) * (holes[i].x - extras[j].x);
-      double b = (holes[i].y - extras[j].y) * (holes[i].y - extras[j].y);
+      double a = abs(holes[i].x - extras[j].x);
+      double b = abs(holes[i].y - extras[j].y);
       if (a < b)
         edgedist += a;
       else
         edgedist += b;
+      if (a == 0 || b == 0)
+        edgedist -= .1; // causes arbitrary behavior. todo tune
     }
   }
 
