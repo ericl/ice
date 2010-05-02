@@ -4,8 +4,6 @@
 #include <state.h>
 #include <common.h>
 
-#define HASHMAP_DEFAULT_CAPACITY 93563 // prime
-
 typedef struct entry {
 	coord_t *bits;
 	struct entry *next;

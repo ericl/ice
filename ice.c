@@ -77,7 +77,10 @@ int main(int argc, char *argv[])
           state_t *to_be_added = malloc(sizeof(state_t));
           memcpy(to_be_added, A->state, sizeof(state_t));
 #ifdef ANALYZE_STATE_PRIORITY
-          pq_add(pq, to_be_added, score(to_be_added, end) - offset);
+          int s = score(to_be_added, end);
+          if (s > to_be_added->prev->score)
+            s += SCORE_REGRESSION_PENALTY;
+          pq_add(pq, to_be_added, s - offset);
 #else
           pq_add(pq, to_be_added, 0);
 #endif
@@ -135,6 +138,7 @@ state_t *ReadPBM(char *filename, int *xMax_ptr, int *yMax_ptr)
   init_state->num_bits = 0;
   init_state->prev = NULL;
   init_state->history = "read from file";
+  init_state->score = SCORE_UNDEFINED_SCORE;
   coord_t *pos = init_state->bits;
 
   fp = fopen(filename,"r");

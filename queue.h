@@ -3,8 +3,7 @@
 
 #include <state.h>
 #include <string.h>
-
-#define QUEUE_DEFAULT_CAPACITY 100
+#include <config.h>
 
 typedef struct queue {
 	state_t **storage;

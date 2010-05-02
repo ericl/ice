@@ -9,6 +9,7 @@ typedef struct state {
   struct state *prev;
   char *history;
   int num_bits;
+  int score;
   coord_t *bits;
 } state_t;
 
@@ -141,6 +142,8 @@ bool state_equal(state_t *A, state_t *B) {
 }
 
 int score(state_t *S, state_t *end) {
+  if (S->score != SCORE_UNDEFINED_SCORE)
+    return S->score;
   int num_bits = S->num_bits;
   int bp = 0, hp = 0;
   bool ok;
@@ -173,18 +176,21 @@ int score(state_t *S, state_t *end) {
       extras[hp++] = s;
   }
 
-  double squarediff = 0;
+  double edgedist = 0;
 
   for (int i=0; i < hp; i++) {
     for (int j=0; j < hp; j++) {
-      squarediff += (holes[i].x - extras[j].x) * (holes[i].x - extras[j].x);
-      squarediff += (holes[i].y - extras[j].y) * (holes[i].y - extras[j].y);
+      double a = (holes[i].x - extras[j].x) * (holes[i].x - extras[j].x);
+      double b = (holes[i].y - extras[j].y) * (holes[i].y - extras[j].y);
+      if (a < b)
+        edgedist += a;
+      else
+        edgedist += b;
     }
   }
 
-  squarediff = sqrt(squarediff);
-
-  return (int)squarediff;
+  S->score = (int)sqrt(edgedist);
+  return S->score;
 }
 
 analysis_t *analyze_state(state_t *S) {
@@ -263,6 +269,7 @@ void replace_bit(state_t *S, coord_t old, coord_t dest, state_t *next, direction
       next->bits[i].y = bit.y;
     }
   }
+  next->score = SCORE_UNDEFINED_SCORE;
   next->num_bits = S->num_bits;
   next->history = malloc(15*sizeof(char)); // that's room for 6-digit #'s
   next->prev = S;
