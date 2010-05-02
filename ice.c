@@ -50,14 +50,26 @@ int main(int argc, char *argv[])
         print_history(next + i, end, offset);
         goto out;
       }
+#ifdef PRUNE_DUPLICATE_STATES
       if (put(map, (next + i)->bits, (next + i)->num_bits)) {
+#else
+      if (false) {
+#endif
         duplicate++;
       } else {
         A = analyze_state(next + i);
+#ifdef ANALYZE_STATE_POSSIBLE
         if (can_reach_state(A, end)) {
+#else
+        if (true) {
+#endif
           state_t *to_be_added = malloc(sizeof(state_t));
           memcpy(to_be_added, A->state, sizeof(state_t));
+#ifdef ANALYZE_STATE_PRIORITY
           pq_add(pq, to_be_added, score(to_be_added, end) - offset);
+#else
+          pq_add(pq, to_be_added, 0);
+#endif
           added++;
         } else {
           discard++;

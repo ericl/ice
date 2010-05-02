@@ -2,5 +2,8 @@
 #define CONFIG_H
 
 #define DEBUG
+#define ANALYZE_STATE_PRIORITY
+#define PRUNE_DUPLICATE_STATES
+#define ANALYZE_STATE_POSSIBLE
 
 #endif
