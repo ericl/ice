@@ -3,6 +3,7 @@
 
 #include <malloc.h>
 #include <stdbool.h>
+#include <hashmap.h>
 
 #define DEBUG printf
 
@@ -37,6 +38,13 @@ typedef struct analysis {
 	struct state *state;
 	struct range_list *ranges;
 } analysis_t;
+
+void free_list(range_list_t *ranges) {
+  if (ranges) {
+    free_list(ranges->next);
+    free(ranges);
+  }
+}
 
 bool coord_in_non_1x1_ranges(coord_t c, range_list_t *ranges) {
 	while (ranges) {
@@ -212,6 +220,13 @@ analysis_t *analyze_state(state_t *S) {
 	right_bound.y--;
 
 	goto analysis_loop;
+}
+
+char *prettyo(orientation o) {
+  if (o == HORIZ)
+    return "HORIZ";
+  else
+    return "VERT";
 }
 
 char *prettydir(direction dir) {

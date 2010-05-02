@@ -7,20 +7,6 @@ state_t *ReadPBM(char *, int *, int *);
 void print_state(state_t *);
 void print_analysis(analysis_t *);
 
-char *prettyo(orientation o) {
-  if (o == HORIZ)
-    return "HORIZ";
-  else
-    return "VERT";
-}
-
-char *prettyb(bool b) {
-  if (b)
-    return "true";
-  else
-    return "false";
-}
-
 void print_history(state_t *S) {
   if (!S || !S->prev)
     return;
@@ -32,14 +18,9 @@ int main(int argc, char *argv[])
 {
   int xMax, yMax;
   state_t *start, *end;
-  analysis_t *A;
 
   start = ReadPBM(argv[1], &xMax, &yMax);
-  end   = ReadPBM(argv[2], &xMax, &yMax); // assume same size arrays
-
-  printf("start: ");
-  print_state(start);
-  A = analyze_state(start);
+  end = ReadPBM(argv[2], &xMax, &yMax); // assume same size arrays
 
   int num_next;
   queue_t *queue = construct_queue();
@@ -54,13 +35,15 @@ int main(int argc, char *argv[])
         print_history(next + i);
         goto out;
       }
-      A = analyze_state(next + i);
+      analysis_t *A = analyze_state(next + i);
       if (can_reach_state(A, end)) {
         add(queue, A->state);
         added++;
       } else {
         discard++;
       }
+      free_list(A->ranges);
+      free(A);
     }
   }
   printf("IMPOSSIBLE\n");

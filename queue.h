@@ -2,8 +2,12 @@
 #define QUEUE_H
 
 #include <state.h>
+#include <string.h>
+
+#define QUEUE_DEFAULT_CAPACITY 1000
 
 typedef struct queue {
+	state_t **storage;
 	state_t **head;
 	state_t **tail;
 	int capacity;
@@ -11,13 +15,18 @@ typedef struct queue {
 } queue_t;
 
 queue_t *construct_queue() {
-	state_t **storage = malloc(100000*sizeof(state_t*));
+	state_t **storage = malloc(QUEUE_DEFAULT_CAPACITY*sizeof(state_t*));
 	queue_t *queue = malloc(sizeof(queue_t));
+	queue->storage = storage;
 	queue->head = storage;
 	queue->tail = storage;
-	queue->capacity = 100000;
-	queue->used = 0;
+	queue->capacity = QUEUE_DEFAULT_CAPACITY;
 	return queue;
+}
+
+void free_queue(queue_t *queue) {
+	free(queue->storage);
+	free(queue);
 }
 
 bool isempty(queue_t *queue) {
@@ -25,9 +34,16 @@ bool isempty(queue_t *queue) {
 }
 
 void add(queue_t *queue, state_t *state) {
-	if (queue->used++ >= queue->capacity) {
-		printf("uh oh, probably should write a proper queue now");
-		exit(1);
+	if (queue->head - queue->storage >= queue->capacity) {
+		int steps_back = queue->tail - queue->storage;
+		memmove(queue->storage, queue->tail, queue->head - queue->tail);
+		queue->head -= steps_back;
+		queue->tail -= steps_back;
+		int headpos = queue->head - queue->storage;
+		queue->capacity *= 2;
+		queue->storage = realloc(queue->storage, queue->capacity*sizeof(state_t*));
+		queue->head = queue->storage + headpos;
+		queue->tail = queue->storage;
 	}
 	*queue->head++ = state;
 }
