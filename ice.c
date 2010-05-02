@@ -21,6 +21,13 @@ char *prettyb(bool b) {
     return "false";
 }
 
+void print_history(state_t *S) {
+  if (!S || !S->prev)
+    return;
+  print_history(S->prev);
+  printf("%s\n", S->history);
+}
+
 int main(int argc, char *argv[])
 {
   int xMax, yMax;
@@ -44,7 +51,7 @@ int main(int argc, char *argv[])
     perm++;
     for (int i=0; i < num_next; i++) {
       if (state_equal(next + i, end)) {
-        print_state(next + i);
+        print_history(next + i);
         goto out;
       }
       A = analyze_state(next + i);
@@ -61,7 +68,7 @@ int main(int argc, char *argv[])
   out:
   printf("%d states tried\n", perm);
   printf("%d branches eliminated\n", discard);
-  printf("%d states still queued\n", added - perm);
+  printf("%d states still queued\n", added - perm + 1);
   return 0;
 }
 
@@ -92,7 +99,8 @@ state_t *ReadPBM(char *filename, int *xMax_ptr, int *yMax_ptr)
   int size = 100;
   init_state->bits = malloc(size*sizeof(coord_t));
   init_state->num_bits = 0;
-  init_state->history = "READ FROM FILE";
+  init_state->prev = NULL;
+  init_state->history = "read from file";
   coord_t *pos = init_state->bits;
 
   fp = fopen(filename,"r");

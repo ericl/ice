@@ -27,9 +27,10 @@ typedef struct range_list {
 } range_list_t;
 
 typedef struct state {
-	char *history;
-	int num_bits;
-	coord_t *bits;
+  struct state *prev;
+  char *history;
+  int num_bits;
+  coord_t *bits;
 } state_t;
 
 typedef struct analysis {
@@ -213,7 +214,17 @@ analysis_t *analyze_state(state_t *S) {
 	goto analysis_loop;
 }
 
-void replace_bit(state_t *S, coord_t old, coord_t dest, state_t *next) {
+char *prettydir(direction dir) {
+  switch (dir) {
+    case EAST: return "E";
+    case WEST: return "W";
+    case SOUTH: return "S";
+    case NORTH: return "N";
+  }
+  return "ERROR";
+}
+
+void replace_bit(state_t *S, coord_t old, coord_t dest, state_t *next, direction dir) {
   next->bits = malloc(S->num_bits*sizeof(coord_t));
   for (int i=0; i < S->num_bits; i++) {
     coord_t bit = S->bits[i];
@@ -226,6 +237,9 @@ void replace_bit(state_t *S, coord_t old, coord_t dest, state_t *next) {
     }
   }
   next->num_bits = S->num_bits;
+  next->history = malloc(15*sizeof(char)); // that's room for 6-digit #'s
+  next->prev = S;
+  sprintf(next->history, "%d %d %s", old.x, old.y, prettydir(dir));
 }
 
 void bit_dir(state_t *S, coord_t bit, coord_t **next, direction dir) {
@@ -266,22 +280,22 @@ state_t *possible_next_states(state_t *S, int *num_states) {
     coord_t *next;
     bit_dir(S, bit, &next, WEST);
     if (next) {
-      replace_bit(S, bit, *next, pos++);
+      replace_bit(S, bit, *next, pos++, WEST);
       *num_states = *num_states + 1;
     }
     bit_dir(S, bit, &next, EAST);
     if (next) {
-      replace_bit(S, bit, *next, pos++);
+      replace_bit(S, bit, *next, pos++, EAST);
       *num_states = *num_states + 1;
     }
     bit_dir(S, bit, &next, NORTH);
     if (next) {
-      replace_bit(S, bit, *next, pos++);
+      replace_bit(S, bit, *next, pos++, NORTH);
       *num_states = *num_states + 1;
     }
     bit_dir(S, bit, &next, SOUTH);
     if (next) {
-      replace_bit(S, bit, *next, pos++);
+      replace_bit(S, bit, *next, pos++, SOUTH);
       *num_states = *num_states + 1;
     }
   }
