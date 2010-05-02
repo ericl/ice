@@ -6,15 +6,27 @@
 state_t *ReadPBM(char *, int *, int *);
 void print_state(state_t *);
 void print_analysis(analysis_t *);
+int xMax, yMax;
 
 void print_history(state_t *S, state_t *end, int offset) {
+#ifdef DEBUG
+  if (!S)
+#else
   if (!S || !S->prev)
+#endif
     return;
-  print_history(S->prev, end, offset);
+#ifdef DEBUG
+  if (S->prev)
+#endif
+    print_history(S->prev, end, offset);
 #ifdef DEBUG
   printf("s=%d, ", score(S, end) - offset);
 #endif
   printf("%s\n", S->history);
+#ifdef DEBUG_VERBOSE
+  print_state(S);
+  PrintPBM(S->bits, S->num_bits, xMax, yMax);
+#endif
 }
 
 int main(int argc, char *argv[])
@@ -22,7 +34,6 @@ int main(int argc, char *argv[])
 #ifdef DEBUG
   printf("*** DEBUG DEFINED ***\n");
 #endif
-  int xMax, yMax;
   state_t *start, *end;
   hashmap_t *map = create_hashmap();
 

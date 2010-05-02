@@ -41,4 +41,21 @@ bool coord_set_equal(coord_t *A, coord_t *B, int num_bits) {
   return true;
 }
 
+void PrintPBM(coord_t *bits, int num_bits, int xMax, int yMax) 
+{
+  for (int y = 0; y < yMax; y++) {
+    for (int x = 0; x < xMax; x++) {
+      int in = 0;
+      for (int i=0; i < num_bits; i++) {
+        if (x == bits[i].x && y == bits[i].y) {
+          in = 1;
+          break;
+        }
+      }
+      printf("%d ", in);
+    }
+    printf("\n");
+  }
+}
+
 #endif

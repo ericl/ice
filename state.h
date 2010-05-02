@@ -269,32 +269,52 @@ void replace_bit(state_t *S, coord_t old, coord_t dest, state_t *next, direction
   sprintf(next->history, "%d %d %s", old.x, old.y, prettydir(dir));
 }
 
-void bit_dir(state_t *S, coord_t bit, coord_t **next, direction dir) {
-  *next = NULL;
-  int modx = 0, mody = 0;
+void bit_dir(state_t *S, coord_t bit, coord_t **west, coord_t **east, coord_t **north, coord_t **south) {
+  int westpos, eastpos, northpos, southpos;
+  bool nowestpos = true, noeastpos = true, nonorthpos = true, nosouthpos = true;
   for (int i=0; i < S->num_bits; i++) {
     coord_t test = S->bits[i];
-    if ((((dir == WEST || dir == EAST) && test.y == bit.y) ||
-         ((dir == NORTH || dir == SOUTH) && test.x == bit.x)) &&
-        ((dir == WEST && (test.x + 1 < bit.x)) ||
-         (dir == EAST && (test.x - 1 > bit.x)) ||
-         (dir == NORTH && (test.y + 1 < bit.y)) ||
-         (dir == SOUTH && (test.y - 1 > bit.y)))) {
-      if (!*next || (dir == WEST && ((*next)->x < test.x))
-                 || (dir == EAST && ((*next)->x > test.x))
-                 || (dir == NORTH && ((*next)->y < test.x))
-                 || (dir == SOUTH && ((*next)->y > test.x))) {
-        *next = malloc(sizeof(coord_t));
-        switch (dir) {
-          case WEST: modx = 1; break;
-          case EAST: modx = -1; break;
-          case NORTH: mody = 1; break;
-          case SOUTH: mody = -1; break;
-        }
-        (*next)->x = test.x + modx;
-        (*next)->y = test.y + mody;
+    if (test.x == bit.x) {
+      if (test.y > bit.y) {
+        if (nosouthpos || test.y < southpos)
+          southpos = test.y;
+        nosouthpos = false;
+      } else if (test.y < bit.y) {
+        if (nonorthpos || test.y > northpos)
+          northpos = test.y;
+        nonorthpos = false;
+      }
+    } else if (test.y == bit.y) {
+      if (test.x > bit.x) {
+        if (noeastpos || test.x < eastpos)
+          eastpos = test.x;
+        noeastpos = false;
+      } else if (test.x < bit.x) {
+        if (nowestpos || test.x > westpos)
+          westpos = test.x;
+        nowestpos = false;
       }
     }
+  }
+  if (!nowestpos && westpos + 1 != bit.x) {
+    *west = malloc(sizeof(coord_t));
+    (*west)->x = westpos + 1;
+    (*west)->y = bit.y;
+  }
+  if (!noeastpos && eastpos - 1 != bit.x) {
+    *east = malloc(sizeof(coord_t));
+    (*east)->x = eastpos - 1;
+    (*east)->y = bit.y;
+  }
+  if (!nonorthpos && northpos + 1 != bit.y) {
+    *north = malloc(sizeof(coord_t));
+    (*north)->x = bit.x;
+    (*north)->y = northpos + 1;
+  }
+  if (!nosouthpos && southpos - 1 != bit.y) {
+    *south = malloc(sizeof(coord_t));
+    (*south)->x = bit.x;
+    (*south)->y = southpos - 1;
   }
 }
 
@@ -304,30 +324,27 @@ state_t *possible_next_states(state_t *S, int *num_states) {
   *num_states = 0;
   for (int i=0; i < S->num_bits; i++) {
     coord_t bit = S->bits[i];
-    coord_t *next;
-    bit_dir(S, bit, &next, WEST);
-    if (next) {
-      replace_bit(S, bit, *next, pos++, WEST);
+    coord_t *west = NULL, *east = NULL, *north = NULL, *south = NULL;
+    bit_dir(S, bit, &west, &east, &north, &south);
+    if (west) {
+      replace_bit(S, bit, *west, pos++, WEST);
       *num_states = *num_states + 1;
-      free(next);
+      free(west);
     }
-    bit_dir(S, bit, &next, EAST);
-    if (next) {
-      replace_bit(S, bit, *next, pos++, EAST);
+    if (east) {
+      replace_bit(S, bit, *east, pos++, EAST);
       *num_states = *num_states + 1;
-      free(next);
+      free(east);
     }
-    bit_dir(S, bit, &next, NORTH);
-    if (next) {
-      replace_bit(S, bit, *next, pos++, NORTH);
+    if (north) {
+      replace_bit(S, bit, *north, pos++, NORTH);
       *num_states = *num_states + 1;
-      free(next);
+      free(north);
     }
-    bit_dir(S, bit, &next, SOUTH);
-    if (next) {
-      replace_bit(S, bit, *next, pos++, SOUTH);
+    if (south) {
+      replace_bit(S, bit, *south, pos++, SOUTH);
       *num_states = *num_states + 1;
-      free(next);
+      free(south);
     }
   }
   return states;
