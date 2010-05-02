@@ -141,9 +141,44 @@ bool state_equal(state_t *A, state_t *B) {
   return coord_set_equal(A->bits, B->bits, A->num_bits);
 }
 
-int score(state_t *S, state_t *end) {
-  if (S->score != SCORE_UNDEFINED_SCORE)
-    return S->score;
+int score_grid_dist(state_t *S, state_t *end) {
+  int num_bits = S->num_bits;
+  int ymax = 0, xmax = 0;
+  // calculate the boundaries
+  for (int i=0; i < num_bits; i++) {
+    if (S->bits[i].x > xmax)
+      xmax = S->bits[i].x;
+    if (end->bits[i].x > xmax)
+      xmax = end->bits[i].x;
+    if (S->bits[i].y > ymax)
+      ymax = S->bits[i].x;
+    if (end->bits[i].y > ymax)
+      ymax = end->bits[i].x;
+  }
+
+  if (xmax > ymax)
+    ymax = xmax;
+
+  int gdist = 0;
+  for (int i=0; i <= ymax; i++) {
+    int axsum = 0, bxsum = 0, aysum = 0, bysum = 0;
+    for (int j=0; j < num_bits; j++) {
+      if (S->bits[j].y == i)
+        aysum++;
+      if (end->bits[j].y == i)
+        bysum++;
+      if (S->bits[j].x == i)
+        axsum++;
+      if (end->bits[j].x == i)
+        bxsum++;
+    }
+    gdist += abs(axsum - bxsum);
+    gdist += abs(aysum - bysum);
+  }
+  return gdist;
+}
+
+int score_node_dist(state_t *S, state_t *end) {
   int num_bits = S->num_bits;
   int bp = 0, hp = 0;
   bool ok;
@@ -186,12 +221,17 @@ int score(state_t *S, state_t *end) {
         edgedist += a;
       else
         edgedist += b;
-      if (a == 0 || b == 0)
-        edgedist -= .1; // causes arbitrary behavior. todo tune
     }
   }
+  return (int)sqrt(edgedist);
+}
 
-  S->score = (int)sqrt(edgedist);
+int score_min_of_all(state_t *S, state_t *end) {
+  if (S->score != SCORE_UNDEFINED_SCORE)
+    return S->score;
+  int a = score_grid_dist(S, end);
+  int b = score_node_dist(S, end);
+  S->score = a + b;
   return S->score;
 }
 

@@ -20,7 +20,7 @@ void print_history(state_t *S, state_t *end, int offset) {
 #endif
     print_history(S->prev, end, offset);
 #ifdef DEBUG
-  printf("s=%d, ", score(S, end) - offset);
+  printf("s=%d, ", SCORE(S, end) - offset);
 #endif
   printf("%s\n", S->history);
 #ifdef DEBUG_VERBOSE
@@ -31,6 +31,7 @@ void print_history(state_t *S, state_t *end, int offset) {
 
 int main(int argc, char *argv[])
 {
+  int exit_code = 0;
 #ifdef DEBUG
   printf("*** DEBUG DEFINED ***\n");
 #endif
@@ -40,7 +41,7 @@ int main(int argc, char *argv[])
   start = ReadPBM(argv[1], &xMax, &yMax);
   end = ReadPBM(argv[2], &xMax, &yMax); // assume same size arrays
 
-  int offset = score(start, end);
+  int offset = SCORE(start, end);
 
   int num_next;
   pqueue_t *pq = construct_pqueue();
@@ -77,7 +78,7 @@ int main(int argc, char *argv[])
           state_t *to_be_added = malloc(sizeof(state_t));
           memcpy(to_be_added, A->state, sizeof(state_t));
 #ifdef ANALYZE_STATE_PRIORITY
-          int s = score(to_be_added, end);
+          int s = SCORE(to_be_added, end);
           if (s > to_be_added->prev->score)
             s += SCORE_REGRESSION_PENALTY;
           pq_add(pq, to_be_added, s - offset);
@@ -95,6 +96,7 @@ int main(int argc, char *argv[])
     free(next);
   }
   printf("IMPOSSIBLE\n");
+  exit_code = 1;
 
   out:
 #ifdef DEBUG
@@ -106,7 +108,7 @@ int main(int argc, char *argv[])
   printf("%d is hash table size\n", map->size);
   printf("%d is depth of priority queue\n", pq_stat_list_depth(pq));
 #endif
-  return 0;
+  return exit_code;
 }
 
 

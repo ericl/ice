@@ -14,4 +14,6 @@
 #define SCORE_UNDEFINED_SCORE 999999
 #define SCORE_REGRESSION_PENALTY 5
 
+#define SCORE score_min_of_all
+
 #endif
