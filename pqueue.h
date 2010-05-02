@@ -26,7 +26,9 @@ pqnode_t *construct_pqnode(int prio, pqnode_t *higher) {
 
 pqueue_t *construct_pqueue() {
 	pqueue_t *pq = malloc(sizeof(pqueue_t));
-	pq->head = construct_pqnode(10, NULL);
+	pq->head = construct_pqnode(25, pq->head);
+	pq->head = construct_pqnode(10, pq->head);
+	pq->head = construct_pqnode(5, pq->head);
 	return pq;
 }
 
