@@ -38,10 +38,8 @@ int hash_int(int h) {
 
 int hash(coord_t *bits, int num_bits) {
 	int hash = 0;
-	for (int i=0; i < num_bits; i++) {
-		hash += hash_int(bits[i].x);
-		hash += hash_int(bits[i].y);
-	}
+	for (int i=0; i < num_bits; i++)
+		hash += hash_int(bits[i].x << 16 | bits[i].y);
 	return hash;
 }
 
