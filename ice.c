@@ -5,8 +5,8 @@
 #include <omp.h>
 
 state_t *ReadPBM(char *, int *, int *);
+void PrintAnalysis(analysis_t *);
 void print_state(state_t *);
-void print_analysis(analysis_t *);
 int xMax, yMax;
 
 void print_history(state_t *S, state_t *end, int offset) {
@@ -62,6 +62,9 @@ int work(hashmap_t *map, pqueue_t *pq, state_t *start, state_t *end, analysis_t 
           duplicate++;
         } else {
           A = analyze_state(next + i);
+#ifdef DEBUG_VERBOSE
+          PrintAnalysis(A);
+#endif
           if (can_reach_state(A, end)) {
             to_be_added = malloc(sizeof(state_t));
             memcpy(to_be_added, A->state, sizeof(state_t));
@@ -74,7 +77,6 @@ int work(hashmap_t *map, pqueue_t *pq, state_t *start, state_t *end, analysis_t 
           } else {
             discard++;
           }
-//          free_list(A->ranges);
           free(A->array);
           free(A);
         }
@@ -119,6 +121,9 @@ int main(int argc, char *argv[])
   pqueue_t *pq = construct_pqueue();
 
   analysis_t *A = analyze_state(start);
+#ifdef DEBUG_VERBOSE
+  PrintAnalysis(A);
+#endif
   if (can_reach_state(A, end))
     pq_add(pq, start, 0);
   if (state_equal(start, end))
@@ -132,14 +137,20 @@ int main(int argc, char *argv[])
   return exit_code;
 }
 
-
-void print_analysis(analysis_t *A) {
-  printf("Analysis of state %p: ", A->state);
-  range_list_t *list = A->ranges;
-  printf("\n");
-  while (list) {
-    printf("\t%s ([%d, %d], %d) ", prettyo(list->value.o), list->value.min, list->value.max, list->value.bound);
-    list = list->next;
+void PrintAnalysis(analysis_t *A) {
+  printf("Analysis %p: \n", A);
+  for (int y=0; y <= A->r.y; y++) {
+    for (int x=0; x <= A->r.x; x++) {
+      bit_t bit = A->array[x + y * (A->r.x + 1)];
+      if (bit.on && bit.possible)
+        printf("1 ");
+      else if (bit.on)
+        printf("X ");
+      else if (bit.possible)
+        printf("? ");
+      else
+        printf(". ");
+    }
     printf("\n");
   }
 }

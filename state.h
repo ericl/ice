@@ -20,40 +20,10 @@ typedef struct bit {
 
 typedef struct analysis {
 	struct state *state;
-	struct range_list *ranges;
     coord_t l;
     coord_t r;
     bit_t *array;
 } analysis_t;
-
-void free_list(range_list_t *ranges) {
-  if (ranges) {
-    free_list(ranges->next);
-    free(ranges);
-  }
-}
-
-bool coord_in_ranges(coord_t c, range_list_t *ranges) {
-	while (ranges) {
-		if (ranges->value.o == HORIZ) {
-			if (ranges->value.bound == c.y && ranges->value.min <= c.x && ranges->value.max >= c.x)
-				return true;
-		} else {
-			if (ranges->value.bound == c.x && ranges->value.min <= c.y && ranges->value.max >= c.y)
-				return true;
-		}
-		ranges = ranges->next;
-	}
-	return false;
-}
-
-bool all_coords_in_ranges(range_list_t *ranges, state_t *T) {
-	for (int i=0; i < T->num_bits; i++) {
-		if (!coord_in_ranges(T->bits[i], ranges))
-			return false;
-	}
-	return true;
-}
 
 bool all_edges_possible(analysis_t *A, state_t *T) {
   int wc = 0, nc = 0, sc = 0, ec = 0;
@@ -157,16 +127,24 @@ bool all_edges_possible(analysis_t *A, state_t *T) {
   return true;
 }
 
+bool all_coords_in_array(coord_t bound, bit_t *array, state_t *T) {
+  for (int i=0; i < T->num_bits; i++) {
+    coord_t e = T->bits[i];
+    if (e.x > bound.x || e.y > bound.y || !array[e.x + e.y * (bound.x+1)].possible)
+      return false;
+  }
+  return true;
+}
+
 bool can_reach_state(analysis_t *A, state_t *T) {
 	return (A->state->num_bits == T->num_bits)
         && all_edges_possible(A, T)
-		&& all_coords_in_ranges(A->ranges, T);
+		&& all_coords_in_array(A->r, A->array, T);
 }
 
-analysis_t *new_analysis(state_t *S, range_list_t *ranges, coord_t l, coord_t r, bit_t *array) {
+analysis_t *new_analysis(state_t *S, coord_t l, coord_t r, bit_t *array) {
 	analysis_t *A = malloc(sizeof(analysis_t));
 	A->state = S;
-	A->ranges = ranges;
     A->l.x = l.x;
     A->l.y = l.y;
     A->r.x = r.x;
@@ -175,65 +153,41 @@ analysis_t *new_analysis(state_t *S, range_list_t *ranges, coord_t l, coord_t r,
 	return A;
 }
 
-void prepend(range_list_t **ranges, int min, int max, int bound, orientation o) {
-	range_list_t *new_list = malloc(sizeof(range_list_t));
-	new_list->next = *ranges;
-	new_list->value.min = min;
-	new_list->value.max = max;
-	new_list->value.bound = bound;
-	new_list->value.o = o;
-	*ranges = new_list;
-}
-
-void put_range(range_list_t **list_handle, int bound, state_t *S, orientation o) {
-	range_list_t *ranges = *list_handle;
-	int first = true;
-	int min = 0, max = 0;
-	while (ranges) {
-		if (ranges->value.o != o) {
-			if (ranges->value.min <= bound && ranges->value.max >= bound) {
-				if (first) {
-					min = ranges->value.bound;
-					max = ranges->value.bound;
-					first = false;
-				} else {
-					if (ranges->value.bound < min)
-						min = ranges->value.bound;
-					if (ranges->value.bound > min)
-						max = ranges->value.bound;
-				}
-			}
-		}
-		ranges = ranges->next;
-	}
-	for (int i=0; i < S->num_bits; i++) {
-		coord_t c = S->bits[i];
-		if (o == HORIZ && c.y == bound) {
-			if (first) {
-				min = c.x;
-				max = c.x;
-				first = false;
-			} else {
-				if (c.x < min)
-					min = c.x;
-				if (c.x > max)
-					max = c.x;
-			}
-		} else if (o == VERT && c.x == bound) {
-			if (first) {
-				min = c.y;
-				max = c.y;
-				first = false;
-			} else {
-				if (c.y < min)
-					min = c.y;
-				if (c.y > max)
-					max = c.y;
-			}
-		}
-	}
-	if (!first)
-		prepend(list_handle, min, max, bound, o);
+void put_range(bit_t *array, int bound, state_t *S, orientation o, int xmax, int ymax) {
+    bool first = true;
+    int min = 0, max = 0;
+    if (o == VERT) {
+      for (int y=0; y <= ymax; y++) {
+        if (array[bound + y * (xmax+1)].on || array[bound + y * (xmax+1)].possible) {
+          if (first) {
+            min = y;
+            max = y;
+            first = false;
+          } else {
+            max = y;
+          }
+        } 
+        if (!first)
+          for (int y=min; y <= max; y++) {
+            array[bound + y * (xmax+1)].possible = true;
+          }
+      }
+    } else {
+      for (int x=0; x <= xmax; x++) {
+        if (array[x + bound * (xmax+1)].on || array[x + bound * (xmax+1)].possible) {
+          if (first) {
+            min = x;
+            max = x;
+            first = false;
+          } else {
+            max = x;
+          }
+        }
+      }
+      if (!first)
+        for (int x=min; x <= max; x++)
+          array[x + bound * (xmax+1)].possible = true;
+    }
 }
 
 bool state_equal(state_t *A, state_t *B) {
@@ -283,7 +237,6 @@ analysis_t *analyze_state(state_t *S) {
     right_bound.x = 0;
     right_bound.y = 0;
 	bool collide = false;
-	range_list_t *ranges = NULL;
 
 	for (int i=0; i < S->num_bits; i++) {
 		if (!i || S->bits[i].x < left_bound.x)
@@ -308,25 +261,25 @@ analysis_t *analyze_state(state_t *S) {
 	analysis_loop: // shrink border to analyze each time
 
 	if (left_bound.x > right_bound.x || left_bound.y > right_bound.y)
-		return new_analysis(S, ranges, l, r, array);
+		return new_analysis(S, l, r, array);
 
 	if (left_bound.x < right_bound.x) {
 		// analyze two vertical lines
-		put_range(&ranges, left_bound.x, S, VERT);
-		put_range(&ranges, right_bound.x, S, VERT);
+		put_range(array, left_bound.x, S, VERT, r.x, r.y);
+		put_range(array, right_bound.x, S, VERT, r.x, r.y);
 	} else {
 		// analyze single vertical line
-		put_range(&ranges, left_bound.x, S, VERT);
+		put_range(array, left_bound.x, S, VERT, r.x, r.y);
 		collide = true;
 	}
 
 	if (left_bound.y < right_bound.y) {
 		// analyze the two horizontal lines
-		put_range(&ranges, left_bound.y, S, HORIZ);
-		put_range(&ranges, right_bound.y, S, HORIZ);
+		put_range(array, left_bound.y, S, HORIZ, r.x, r.y);
+		put_range(array, right_bound.y, S, HORIZ, r.x, r.y);
 	} else if (!collide) {
 		// analyze single horizontal line
-		put_range(&ranges, left_bound.y, S, HORIZ);
+		put_range(array, left_bound.y, S, HORIZ, r.x, r.y);
 	}
 	
 	left_bound.x++;

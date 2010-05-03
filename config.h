@@ -2,7 +2,7 @@
 #define CONFIG_H
 
 //#define DEBUG_VERBOSE
-#define DEBUG
+//#define DEBUG
 
 #define HASHMAP_DEFAULT_CAPACITY 93563 // prime
 #define QUEUE_DEFAULT_CAPACITY 100
