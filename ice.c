@@ -93,6 +93,7 @@ int work(hashmap_t *map, pqueue_t *pq, state_t *start, state_t *end) {
           num_waiting++;
         } else if (num_waiting >= omp_get_num_threads()) {
           running = false;
+          ret = 1;
         }
       }
     }
