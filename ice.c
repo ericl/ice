@@ -32,16 +32,15 @@ void print_history(state_t *S, state_t *end, int offset) {
 
 int work(hashmap_t *map, pqueue_t *pq, state_t *start, state_t *end) {
   int offset = SCORE(start, end);
-  int ret = 0;
   int perm = 0, added = 0, discard = 0, duplicate = 0;
 
   analysis_t *A = analyze_state(start);
   if (can_reach_state(A, end))
     pq_add(pq, start, 0);
   if (state_equal(start, end))
-    return ret;
+    return 0;
 
-  bool test, running = true, waiting = false;
+  bool test, running = true, history_printed = false, waiting = false;
   int num_next, num_waiting = 0;
   state_t *current, *to_be_added;
   #pragma omp parallel private(test, num_next, current, A, to_be_added) firstprivate(waiting)
@@ -55,8 +54,9 @@ int work(hashmap_t *map, pqueue_t *pq, state_t *start, state_t *end) {
         if (state_equal(next + i, end)) {
           #pragma omp critical (all)
           {
-            if (running) {
+            if (!history_printed) {
               print_history(next + i, end, offset);
+              history_printed = true;
               running = false;
             }
           }
@@ -93,7 +93,6 @@ int work(hashmap_t *map, pqueue_t *pq, state_t *start, state_t *end) {
           num_waiting++;
         } else if (num_waiting >= omp_get_num_threads()) {
           running = false;
-          ret = 1;
         }
       }
     }
@@ -108,7 +107,9 @@ int work(hashmap_t *map, pqueue_t *pq, state_t *start, state_t *end) {
   printf("%d is hash table size\n", map->size);
   printf("%d is depth of priority queue\n", pq_stat_list_depth(pq));
 #endif
-  return ret;
+  if (history_printed)
+    return 0;
+  return 1;
 }
 
 int main(int argc, char *argv[])
