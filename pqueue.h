@@ -26,17 +26,10 @@ pqnode_t *construct_pqnode(int prio, pqnode_t *higher) {
 
 pqueue_t *construct_pqueue() {
 	pqueue_t *pq = malloc(sizeof(pqueue_t));
-	pq->head = construct_pqnode(25, pq->head);
+	pq->head = construct_pqnode(20, pq->head);
 	pq->head = construct_pqnode(10, pq->head);
 	pq->head = construct_pqnode(5, pq->head);
 	return pq;
-}
-
-// anything over 5 is stepped down
-int step_function(int p) {
-	if (p < 5)
-		return p;
-	return 5 + (int)log(1+p-5);
 }
 
 int num_tail(pqnode_t *head) {
@@ -62,7 +55,6 @@ bool pq_isempty(pqueue_t *pq) {
 }
 
 void pq_add(pqueue_t *pq, state_t *state, int priority) {
-	priority = step_function(priority);
 	pqnode_t *head = pq->head;
 	if (priority < head->prio) {
 		pq->head = construct_pqnode(priority, pq->head);
