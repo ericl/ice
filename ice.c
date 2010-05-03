@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <state.h>
 #include <pqueue.h>
+#include <omp.h>
 
 state_t *ReadPBM(char *, int *, int *);
 void print_state(state_t *);
@@ -29,73 +30,74 @@ void print_history(state_t *S, state_t *end, int offset) {
 #endif
 }
 
-int main(int argc, char *argv[])
-{
-  int exit_code = 0;
-  state_t *start, *end;
-  hashmap_t *map = create_hashmap();
-
-  start = ReadPBM(argv[1], &xMax, &yMax);
-  end = ReadPBM(argv[2], &xMax, &yMax); // assume same size arrays
-
+int work(hashmap_t *map, pqueue_t *pq, state_t *start, state_t *end) {
   int offset = SCORE(start, end);
-
-  int num_next;
-  pqueue_t *pq = construct_pqueue();
-
+  int ret = 0;
   int perm = 0, added = 0, discard = 0, duplicate = 0;
 
   analysis_t *A = analyze_state(start);
   if (can_reach_state(A, end))
     pq_add(pq, start, 0);
   if (state_equal(start, end))
-    goto out;
+    return ret;
 
-  while (!pq_isempty(pq)) {
-    state_t *next = possible_next_states(pq_take(pq), &num_next);
-    perm++;
-    for (int i=0; i < num_next; i++) {
-      if (state_equal(next + i, end)) {
-        print_history(next + i, end, offset);
-        goto out;
-      }
-#ifdef PRUNE_DUPLICATE_STATES
-      if (put(map, (next + i)->bits, (next + i)->num_bits)) {
-#else
-      if (false) {
-#endif
-        duplicate++;
-      } else {
-        A = analyze_state(next + i);
-#ifdef ANALYZE_STATE_POSSIBLE
-        if (can_reach_state(A, end)) {
-#else
-        if (true) {
-#endif
-          state_t *to_be_added = malloc(sizeof(state_t));
-          memcpy(to_be_added, A->state, sizeof(state_t));
-#ifdef ANALYZE_STATE_PRIORITY
-          int s = SCORE(to_be_added, end);
-          if (s > to_be_added->prev->score)
-            s += SCORE_REGRESSION_PENALTY;
-          pq_add(pq, to_be_added, s - offset);
-#else
-          pq_add(pq, to_be_added, 0);
-#endif
-          added++;
-        } else {
-          discard++;
+  bool test, running = true, waiting = false;
+  int num_next, num_waiting = 0;
+  state_t *current, *to_be_added;
+  #pragma omp parallel private(test, num_next, current, A, to_be_added) firstprivate(waiting)
+  while (running) {
+    #pragma omp critical (pq)
+    current = pq_take(pq);
+    if (current != NULL) {
+      state_t *next = possible_next_states(current, &num_next);
+      perm++;
+      for (int i=0; i < num_next; i++) {
+        if (state_equal(next + i, end)) {
+          #pragma omp critical (all)
+          {
+            if (running) {
+              print_history(next + i, end, offset);
+              running = false;
+            }
+          }
+          goto stop;
         }
-        free_list(A->ranges);
-        free(A);
+        #pragma omp critical (map)
+        test = put(map, (next + i)->bits, (next + i)->num_bits);
+        if (test) {
+          duplicate++;
+        } else {
+          A = analyze_state(next + i);
+          if (can_reach_state(A, end)) {
+            to_be_added = malloc(sizeof(state_t));
+            memcpy(to_be_added, A->state, sizeof(state_t));
+            int s = SCORE(to_be_added, end);
+            if (s > to_be_added->prev->score)
+              s += SCORE_REGRESSION_PENALTY;
+            #pragma omp critical (pq)
+            pq_add(pq, to_be_added, s - offset);
+            added++;
+          } else {
+            discard++;
+          }
+          free_list(A->ranges);
+          free(A);
+        }
+      }
+      free(next);
+    } else {
+      #pragma omp critical (all)
+      {
+        if (!waiting) {
+          waiting = true;
+          num_waiting++;
+        } else if (num_waiting >= omp_get_num_threads()) {
+          running = false;
+        }
       }
     }
-    free(next);
+    stop:;
   }
-  printf("IMPOSSIBLE\n");
-  exit_code = 1;
-
-  out:
 #ifdef DEBUG
   printf("%d states tried\n", perm);
   printf("%d invalid branches eliminated\n", discard);
@@ -105,6 +107,25 @@ int main(int argc, char *argv[])
   printf("%d is hash table size\n", map->size);
   printf("%d is depth of priority queue\n", pq_stat_list_depth(pq));
 #endif
+  return ret;
+}
+
+int main(int argc, char *argv[])
+{
+  int exit_code = 0;
+  state_t *start, *end;
+
+  start = ReadPBM(argv[1], &xMax, &yMax);
+  end = ReadPBM(argv[2], &xMax, &yMax); // assume same size arrays
+
+  hashmap_t *map = create_hashmap();
+  pqueue_t *pq = construct_pqueue();
+
+  exit_code = work(map, pq, start, end);
+
+  if (exit_code == 1)
+    printf("IMPOSSIBLE\n");
+
   return exit_code;
 }
 

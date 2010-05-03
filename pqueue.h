@@ -72,6 +72,8 @@ void pq_add(pqueue_t *pq, state_t *state, int priority) {
 
 state_t *pq_take(pqueue_t *pq) {
 	pqnode_t *lowest = lowest_node(pq->head);
+	if (!lowest)
+		return NULL;
 	return take(lowest->queue);
 }
 
