@@ -145,7 +145,9 @@ state_t *ReadPBM(char *filename, int *xMax_ptr, int *yMax_ptr)
     printf("could not open file '%s'\n", filename);
     exit(2);
   }
-  fscanf(fp,"%s %d %d", pbm_type, xMax_ptr, yMax_ptr);
+  int ret = fscanf(fp,"%s %d %d", pbm_type, xMax_ptr, yMax_ptr);
+  if (!ret)
+    printf("read failed");
   do {c=getc(fp);} while (c != '0' && c != '1'); // Read all whitespace
   ungetc(c,fp);
 

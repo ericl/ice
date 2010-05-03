@@ -80,7 +80,7 @@ bool all_edges_possible(analysis_t *A, state_t *T) {
   // now scan the END state to see if the edges work
   for (int i=0; i < T->num_bits; i++) {
     bit = T->bits[i];
-    int lo_d, hi_d, hi_c = 0, lo_c = 0;
+    int lo_d = 0, hi_d = 0, hi_c = 0, lo_c = 0;
     // west edge
     if (bit.x == A->l.x) {
       for (int i=0; i < wc; i++) {
@@ -181,7 +181,7 @@ void prepend(range_list_t **ranges, int min, int max, int bound, orientation o) 
 void put_range(range_list_t **list_handle, int bound, state_t *S, orientation o) {
 	range_list_t *ranges = *list_handle;
 	int first = true;
-	int min, max;
+	int min = 0, max = 0;
 	while (ranges) {
 		if (ranges->value.o != o) {
 			if (ranges->value.min <= bound && ranges->value.max >= bound) {
@@ -331,6 +331,10 @@ int score_min_of_all(state_t *S, state_t *end) {
 
 analysis_t *analyze_state(state_t *S) {
 	coord_t left_bound, right_bound, l, r;
+    left_bound.x = 0;
+    left_bound.y = 0;
+    right_bound.x = 0;
+    right_bound.y = 0;
 	bool collide = false;
 	range_list_t *ranges = NULL;
 
@@ -419,7 +423,7 @@ void replace_bit(state_t *S, coord_t old, coord_t dest, state_t *next, direction
 }
 
 void bit_dir(state_t *S, coord_t bit, coord_t **west, coord_t **east, coord_t **north, coord_t **south) {
-  int westpos, eastpos, northpos, southpos;
+  int westpos = 0, eastpos = 0, northpos = 0, southpos = 0;
   bool nowestpos = true, noeastpos = true, nonorthpos = true, nosouthpos = true;
   for (int i=0; i < S->num_bits; i++) {
     coord_t test = S->bits[i];
