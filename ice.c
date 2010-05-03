@@ -34,11 +34,7 @@ int work(hashmap_t *map, pqueue_t *pq, state_t *start, state_t *end) {
   int offset = SCORE(start, end);
   int perm = 0, added = 0, discard = 0, duplicate = 0;
 
-  analysis_t *A = analyze_state(start);
-  if (can_reach_state(A, end))
-    pq_add(pq, start, 0);
-  if (state_equal(start, end))
-    return 0;
+  analysis_t *A;
 
   bool test, running = true, history_printed = false, waiting = false;
   int num_next, num_waiting = 0;
@@ -122,6 +118,12 @@ int main(int argc, char *argv[])
 
   hashmap_t *map = create_hashmap();
   pqueue_t *pq = construct_pqueue();
+
+  analysis_t *A = analyze_state(start);
+  if (can_reach_state(A, end))
+    pq_add(pq, start, 0);
+  if (state_equal(start, end))
+    return 0;
 
   exit_code = work(map, pq, start, end);
 
