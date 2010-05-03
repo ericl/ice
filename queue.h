@@ -23,10 +23,10 @@ queue_t *construct_queue() {
 	return queue;
 }
 
-void free_queue(queue_t *queue) {
-	free(queue->storage);
-	free(queue);
-}
+//void free_queue(queue_t *queue) {
+//	free(queue->storage);
+//	free(queue);
+//}
 
 bool isempty(queue_t *queue) {
 	return queue->tail == queue->head;

@@ -20,12 +20,12 @@ typedef struct analysis {
     coord_t r;
 } analysis_t;
 
-void free_list(range_list_t *ranges) {
-  if (ranges) {
-    free_list(ranges->next);
-    free(ranges);
-  }
-}
+//void free_list(range_list_t *ranges) {
+//  if (ranges) {
+//    free_list(ranges->next);
+//    free(ranges);
+//  }
+//}
 
 bool coord_in_ranges(coord_t c, range_list_t *ranges) {
 	while (ranges) {
@@ -484,22 +484,22 @@ state_t *possible_next_states(state_t *S, int *num_states) {
     if (west) {
       replace_bit(S, bit, *west, pos++, WEST);
       *num_states = *num_states + 1;
-      free(west);
+//      free(west);
     }
     if (east) {
       replace_bit(S, bit, *east, pos++, EAST);
       *num_states = *num_states + 1;
-      free(east);
+//      free(east);
     }
     if (north) {
       replace_bit(S, bit, *north, pos++, NORTH);
       *num_states = *num_states + 1;
-      free(north);
+//      free(north);
     }
     if (south) {
       replace_bit(S, bit, *south, pos++, SOUTH);
       *num_states = *num_states + 1;
-      free(south);
+//      free(south);
     }
   }
   return states;

@@ -76,11 +76,11 @@ int work(hashmap_t *map, pqueue_t *pq, state_t *start, state_t *end) {
           } else {
             discard++;
           }
-          free_list(A->ranges);
-          free(A);
+//          free_list(A->ranges);
+//          free(A);
         }
       }
-      free(next);
+//      free(next);
     } else {
       #pragma omp critical (all)
       {
