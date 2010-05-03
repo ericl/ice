@@ -16,6 +16,8 @@ typedef struct state {
 typedef struct analysis {
 	struct state *state;
 	struct range_list *ranges;
+    coord_t l;
+    coord_t r;
 } analysis_t;
 
 void free_list(range_list_t *ranges) {
@@ -24,21 +26,6 @@ void free_list(range_list_t *ranges) {
     free(ranges);
   }
 }
-
-bool coord_in_non_1x1_ranges(coord_t c, range_list_t *ranges) {
-	while (ranges) {
-		if (ranges->value.o == HORIZ) {
-			if (ranges->value.bound == c.y && ranges->value.min <= c.x && ranges->value.max >= c.x && ranges->value.min != ranges->value.max)
-				return true;
-		} else {
-			if (ranges->value.bound == c.x && ranges->value.min <= c.y && ranges->value.max >= c.y && ranges->value.min != ranges->value.max)
-				return true;
-		}
-		ranges = ranges->next;
-	}
-	return false;
-}
-
 
 bool coord_in_ranges(coord_t c, range_list_t *ranges) {
 	while (ranges) {
@@ -62,15 +49,122 @@ bool all_coords_in_ranges(range_list_t *ranges, state_t *T) {
 	return true;
 }
 
+bool all_edges_possible(analysis_t *A, state_t *T) {
+  int wc = 0, nc = 0, sc = 0, ec = 0;
+  // these hold the CURRENT state's edges
+  coord_t w[T->num_bits];
+  coord_t e[T->num_bits];
+  coord_t n[T->num_bits];
+  coord_t s[T->num_bits];
+  coord_t bit;
+  // first determine the edges for the CURRENT state
+  for (int i=0; i < T->num_bits; i++) {
+    bit = A->state->bits[i];
+    // west edge
+    if (bit.x == A->l.x) {
+      w[wc++] = bit;
+    }
+    // east edge
+    if (bit.x == A->r.x) {
+      e[ec++] = bit;
+    }
+    // north edge
+    if (bit.y == A->l.y) {
+      n[nc++] = bit;
+    }
+    // south edge
+    if (bit.y == A->r.y) {
+      s[sc++] = bit;
+    }
+  }
+  // now scan the END state to see if the edges work
+  for (int i=0; i < T->num_bits; i++) {
+    bit = T->bits[i];
+    int lo_d, hi_d, hi_c = 0, lo_c = 0;
+    // west edge
+    if (bit.x == A->l.x) {
+      for (int i=0; i < wc; i++) {
+        if (w[i].y == bit.y) {
+          goto bit_ok;
+        } else if (w[i].y < bit.y) {
+          if (!lo_c++ || bit.y - w[i].y < lo_d)
+            lo_d = bit.y - w[i].y;
+        } else if (w[i].y > bit.y) {
+          if (!hi_c++ || w[i].y - bit.y < hi_d)
+            hi_d = w[i].y - bit.y;
+        }
+      }
+      if (!lo_c || !hi_c || (hi_c < lo_d && lo_c < hi_d))
+        return false;
+    }
+    // east edge
+    if (bit.x == A->r.x) {
+      for (int i=0; i < ec; i++) {
+        if (e[i].y == bit.y) {
+          goto bit_ok;
+        } else if (e[i].y < bit.y) {
+          if (!lo_c++ || bit.y - e[i].y < lo_d)
+            lo_d = bit.y - e[i].y;
+        } else if (e[i].y > bit.y) {
+          if (!hi_c++ || e[i].y - bit.y < hi_d)
+            hi_d = e[i].y - bit.y;
+        }
+      }
+      if (!lo_c || !hi_c || (hi_c < lo_d && lo_c < hi_d))
+        return false;
+    }
+    // north edge
+    if (bit.y == A->l.y) {
+      for (int i=0; i < nc; i++) {
+        if (n[i].x == bit.x) {
+          goto bit_ok;
+        } else if (n[i].x < bit.x) {
+          if (!lo_c++ || bit.x - n[i].x < lo_d)
+            lo_d = bit.x - n[i].x;
+        } else if (n[i].x > bit.x) {
+          if (!hi_c++ || n[i].x - bit.x < hi_d)
+            hi_d = n[i].x - bit.x;
+        }
+      }
+      if (!lo_c || !hi_c || (hi_c < lo_d && lo_c < hi_d))
+        return false;
+    }
+    // south edge
+    if (bit.y == A->r.y) {
+      for (int i=0; i < sc; i++) {
+        if (s[i].x == bit.x) {
+          goto bit_ok;
+        } else if (s[i].x < bit.x) {
+          if (!lo_c++ || bit.x - s[i].x < lo_d)
+            lo_d = bit.x - s[i].x;
+        } else if (s[i].x > bit.x) {
+          if (!hi_c++ || s[i].x - bit.x < hi_d)
+            hi_d = s[i].x - bit.x;
+        }
+      }
+      if (!lo_c || !hi_c || (hi_c < lo_d && lo_c < hi_d))
+        return false;
+    }
+    bit_ok:
+    ;
+  }
+  return true;
+}
+
 bool can_reach_state(analysis_t *A, state_t *T) {
 	return (A->state->num_bits == T->num_bits)
+        && all_edges_possible(A, T)
 		&& all_coords_in_ranges(A->ranges, T);
 }
 
-analysis_t *new_analysis(state_t *S, range_list_t *ranges) {
+analysis_t *new_analysis(state_t *S, range_list_t *ranges, coord_t l, coord_t r) {
 	analysis_t *A = malloc(sizeof(analysis_t));
 	A->state = S;
 	A->ranges = ranges;
+    A->l.x = l.x;
+    A->l.y = l.y;
+    A->r.x = r.x;
+    A->r.y = r.y;
 	return A;
 }
 
@@ -236,9 +330,10 @@ int score_min_of_all(state_t *S, state_t *end) {
 }
 
 analysis_t *analyze_state(state_t *S) {
-	coord_t left_bound, right_bound;
+	coord_t left_bound, right_bound, l, r;
 	bool collide = false;
 	range_list_t *ranges = NULL;
+
 	for (int i=0; i < S->num_bits; i++) {
 		if (!i || S->bits[i].x < left_bound.x)
 			left_bound.x = S->bits[i].x;
@@ -250,10 +345,15 @@ analysis_t *analyze_state(state_t *S) {
 			right_bound.y = S->bits[i].y;
 	}
 
+    l.x = left_bound.x;
+    l.y = left_bound.y;
+    r.x = right_bound.x;
+    r.y = right_bound.y;
+
 	analysis_loop: // shrink border to analyze each time
 
 	if (left_bound.x > right_bound.x || left_bound.y > right_bound.y)
-		return new_analysis(S, ranges);
+		return new_analysis(S, ranges, l, r);
 
 	if (left_bound.x < right_bound.x) {
 		// analyze two vertical lines
