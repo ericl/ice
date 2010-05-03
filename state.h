@@ -13,19 +13,25 @@ typedef struct state {
   coord_t *bits;
 } state_t;
 
+typedef struct bit {
+  bool on : 1;
+  bool possible : 1;
+} bit_t;
+
 typedef struct analysis {
 	struct state *state;
 	struct range_list *ranges;
     coord_t l;
     coord_t r;
+    bit_t *array;
 } analysis_t;
 
-//void free_list(range_list_t *ranges) {
-//  if (ranges) {
-//    free_list(ranges->next);
-//    free(ranges);
-//  }
-//}
+void free_list(range_list_t *ranges) {
+  if (ranges) {
+    free_list(ranges->next);
+    free(ranges);
+  }
+}
 
 bool coord_in_ranges(coord_t c, range_list_t *ranges) {
 	while (ranges) {
@@ -153,13 +159,11 @@ bool all_edges_possible(analysis_t *A, state_t *T) {
 
 bool can_reach_state(analysis_t *A, state_t *T) {
 	return (A->state->num_bits == T->num_bits)
-#ifdef ANALYZE_EDGES
         && all_edges_possible(A, T)
-#endif
 		&& all_coords_in_ranges(A->ranges, T);
 }
 
-analysis_t *new_analysis(state_t *S, range_list_t *ranges, coord_t l, coord_t r) {
+analysis_t *new_analysis(state_t *S, range_list_t *ranges, coord_t l, coord_t r, bit_t *array) {
 	analysis_t *A = malloc(sizeof(analysis_t));
 	A->state = S;
 	A->ranges = ranges;
@@ -167,6 +171,7 @@ analysis_t *new_analysis(state_t *S, range_list_t *ranges, coord_t l, coord_t r)
     A->l.y = l.y;
     A->r.x = r.x;
     A->r.y = r.y;
+    A->array = array;
 	return A;
 }
 
@@ -237,98 +242,38 @@ bool state_equal(state_t *A, state_t *B) {
   return coord_set_equal(A->bits, B->bits, A->num_bits);
 }
 
-int score_grid_dist(state_t *S, state_t *end) {
-  int num_bits = S->num_bits;
-  int ymax = 0, xmax = 0;
-  // calculate the boundaries
-  for (int i=0; i < num_bits; i++) {
-    if (S->bits[i].x > xmax)
-      xmax = S->bits[i].x;
-    if (end->bits[i].x > xmax)
-      xmax = end->bits[i].x;
-    if (S->bits[i].y > ymax)
-      ymax = S->bits[i].x;
-    if (end->bits[i].y > ymax)
-      ymax = end->bits[i].x;
-  }
-
-  if (xmax > ymax)
-    ymax = xmax;
-
-  int gdist = 0;
-  for (int i=0; i <= ymax; i++) {
-    int axsum = 0, bxsum = 0, aysum = 0, bysum = 0;
-    for (int j=0; j < num_bits; j++) {
-      if (S->bits[j].y == i)
-        aysum++;
-      if (end->bits[j].y == i)
-        bysum++;
-      if (S->bits[j].x == i)
-        axsum++;
-      if (end->bits[j].x == i)
-        bxsum++;
-    }
-    gdist += abs(axsum - bxsum);
-    gdist += abs(aysum - bysum);
-  }
-  return gdist;
-}
-
-int score_node_dist(state_t *S, state_t *end) {
+int score_node_dist(state_t *S, state_t *end, analysis_t *S_a, analysis_t *end_a) {
   int num_bits = S->num_bits;
   int bp = 0, hp = 0;
-  bool ok;
   coord_t extras[num_bits];
   coord_t holes[num_bits];
+
   for (int i=0; i < num_bits; i++) {
     coord_t e = end->bits[i];
-    ok = false;
-    for (int j=0; j < num_bits; j++) {
-      coord_t s = S->bits[i];
-      if (s.x == e.x && s.y == e.y) {
-        ok = true;
-        break;
-      }
-    }
-    if (!ok)
+    if (e.x > S_a->r.x || e.y > S_a->r.y || !S_a->array[e.x + e.y * (S_a->r.x+1)].on) {
       holes[bp++] = e;
+    }
   }
   for (int i=0; i < num_bits; i++) {
     coord_t s = S->bits[i];
-    ok = false;
-    for (int j=0; j < num_bits; j++) {
-      coord_t e = end->bits[i];
-      if (s.x == e.x && s.y == e.y) {
-        ok = true;
-        break;
-      }
-    }
-    if (!ok)
+    if (s.x > end_a->r.x || s.y > end_a->r.y || !end_a->array[s.x + s.y * (end_a->r.x+1)].on) {
       extras[hp++] = s;
+    }
   }
 
-  double edgedist = 0;
+  int edgedist = 0;
 
   for (int i=0; i < hp; i++) {
     for (int j=0; j < hp; j++) {
-      double a = abs(holes[i].x - extras[j].x);
-      double b = abs(holes[i].y - extras[j].y);
+      int a = abs(holes[i].x - extras[j].x);
+      int b = abs(holes[i].y - extras[j].y);
       if (a < b)
         edgedist += a;
       else
         edgedist += b;
     }
   }
-  return (int)sqrt(edgedist);
-}
-
-int score_min_of_all(state_t *S, state_t *end) {
-  if (S->score != SCORE_UNDEFINED_SCORE)
-    return S->score;
-  int a = score_grid_dist(S, end);
-  int b = score_node_dist(S, end);
-  S->score = a + b;
-  return S->score;
+  return edgedist;
 }
 
 analysis_t *analyze_state(state_t *S) {
@@ -351,6 +296,10 @@ analysis_t *analyze_state(state_t *S) {
 			right_bound.y = S->bits[i].y;
 	}
 
+    bit_t *array = calloc((1+right_bound.x) * (1+right_bound.y), sizeof(bit_t));
+	for (int i=0; i < S->num_bits; i++)
+      array[S->bits[i].x + S->bits[i].y * (right_bound.x+1)].on = true;
+
     l.x = left_bound.x;
     l.y = left_bound.y;
     r.x = right_bound.x;
@@ -359,7 +308,7 @@ analysis_t *analyze_state(state_t *S) {
 	analysis_loop: // shrink border to analyze each time
 
 	if (left_bound.x > right_bound.x || left_bound.y > right_bound.y)
-		return new_analysis(S, ranges, l, r);
+		return new_analysis(S, ranges, l, r, array);
 
 	if (left_bound.x < right_bound.x) {
 		// analyze two vertical lines
@@ -386,6 +335,13 @@ analysis_t *analyze_state(state_t *S) {
 	right_bound.y--;
 
 	goto analysis_loop;
+}
+
+int score(analysis_t *A, analysis_t *B) {
+  if (A->state->score != SCORE_UNDEFINED_SCORE)
+    return A->state->score;
+  int ret = score_node_dist(A->state, B->state, A, B);
+  return A->state->score = ret;
 }
 
 char *prettyo(orientation o) {
@@ -484,22 +440,22 @@ state_t *possible_next_states(state_t *S, int *num_states) {
     if (west) {
       replace_bit(S, bit, *west, pos++, WEST);
       *num_states = *num_states + 1;
-//      free(west);
+      free(west);
     }
     if (east) {
       replace_bit(S, bit, *east, pos++, EAST);
       *num_states = *num_states + 1;
-//      free(east);
+      free(east);
     }
     if (north) {
       replace_bit(S, bit, *north, pos++, NORTH);
       *num_states = *num_states + 1;
-//      free(north);
+      free(north);
     }
     if (south) {
       replace_bit(S, bit, *south, pos++, SOUTH);
       *num_states = *num_states + 1;
-//      free(south);
+      free(south);
     }
   }
   return states;

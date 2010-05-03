@@ -1,8 +1,5 @@
 #!/bin/bash
 
-./ice-binary "$@"
-exit $?
-
 if [ ! -e ice-binary ]; then
 	echo "need to compile first"
 	exit 1

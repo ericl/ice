@@ -21,7 +21,7 @@ void print_history(state_t *S, state_t *end, int offset) {
 #endif
     print_history(S->prev, end, offset);
 #ifdef DEBUG
-  printf("s=%d, ", SCORE(S, end) - offset);
+  printf("s=%d, ", score(analyze_state(S), analyze_state(end)) - offset);
 #endif
   printf("%s\n", S->history);
 #ifdef DEBUG_VERBOSE
@@ -30,11 +30,9 @@ void print_history(state_t *S, state_t *end, int offset) {
 #endif
 }
 
-int work(hashmap_t *map, pqueue_t *pq, state_t *start, state_t *end) {
-  int offset = SCORE(start, end);
+int work(hashmap_t *map, pqueue_t *pq, state_t *start, state_t *end, analysis_t *A, analysis_t *B) {
+  int offset = score(A, B);
   int perm = 0, added = 0, discard = 0, duplicate = 0;
-
-  analysis_t *A;
 
   bool test, running = true, history_printed = false, waiting = false;
   int num_next, num_waiting = 0;
@@ -67,7 +65,7 @@ int work(hashmap_t *map, pqueue_t *pq, state_t *start, state_t *end) {
           if (can_reach_state(A, end)) {
             to_be_added = malloc(sizeof(state_t));
             memcpy(to_be_added, A->state, sizeof(state_t));
-            int s = SCORE(to_be_added, end);
+            int s = score(A, B);
             if (s > to_be_added->prev->score)
               s += SCORE_REGRESSION_PENALTY;
             #pragma omp critical (pq)
@@ -77,10 +75,11 @@ int work(hashmap_t *map, pqueue_t *pq, state_t *start, state_t *end) {
             discard++;
           }
 //          free_list(A->ranges);
-//          free(A);
+          free(A->array);
+          free(A);
         }
       }
-//      free(next);
+      free(next);
     } else {
       #pragma omp critical (all)
       {
@@ -125,7 +124,7 @@ int main(int argc, char *argv[])
   if (state_equal(start, end))
     return 0;
 
-  exit_code = work(map, pq, start, end);
+  exit_code = work(map, pq, start, end, A, analyze_state(end));
 
   if (exit_code == 1)
     printf("IMPOSSIBLE\n");
