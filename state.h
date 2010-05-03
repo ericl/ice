@@ -153,7 +153,9 @@ bool all_edges_possible(analysis_t *A, state_t *T) {
 
 bool can_reach_state(analysis_t *A, state_t *T) {
 	return (A->state->num_bits == T->num_bits)
+#ifdef ANALYZE_EDGES
         && all_edges_possible(A, T)
+#endif
 		&& all_coords_in_ranges(A->ranges, T);
 }
 
