@@ -32,9 +32,6 @@ void print_history(state_t *S, state_t *end, int offset) {
 int main(int argc, char *argv[])
 {
   int exit_code = 0;
-#ifdef DEBUG
-  printf("*** DEBUG DEFINED ***\n");
-#endif
   state_t *start, *end;
   hashmap_t *map = create_hashmap();
 
@@ -144,6 +141,10 @@ state_t *ReadPBM(char *filename, int *xMax_ptr, int *yMax_ptr)
   coord_t *pos = init_state->bits;
 
   fp = fopen(filename,"r");
+  if (!fp) {
+    printf("could not open file '%s'\n", filename);
+    exit(2);
+  }
   fscanf(fp,"%s %d %d", pbm_type, xMax_ptr, yMax_ptr);
   do {c=getc(fp);} while (c != '0' && c != '1'); // Read all whitespace
   ungetc(c,fp);
