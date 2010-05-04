@@ -60,10 +60,10 @@ void put_edge(bit_t *array, int bound, state_t *S, orientation o, int xmax, int 
       for (int y=0; y <= ymax; y++) {
         if (array[bound + y * (xmax+1)].on)
           buf[I++] = y;
-        for (int i=0; i < I; i++) {
-          for (int disp=-i; disp < I-i; disp++) {
-            array[bound + (buf[i]+disp) * (xmax+1)].possible = true;
-          }
+      }
+      for (int i=0; i < I; i++) {
+        for (int disp=-i; disp < I-i; disp++) {
+          array[bound + (buf[i]+disp) * (xmax+1)].possible = true;
         }
       }
     } else {
@@ -72,10 +72,10 @@ void put_edge(bit_t *array, int bound, state_t *S, orientation o, int xmax, int 
       for (int x=0; x <= xmax; x++) {
         if (array[x + bound * (xmax+1)].on)
           buf[I++] = x;
-        for (int i=0; i < I; i++) {
-          for (int disp=-i; disp < I-i; disp++) {
-            array[buf[i] + disp + bound * (xmax+1)].possible = true;
-          }
+      }
+      for (int i=0; i < I; i++) {
+        for (int disp=-i; disp < I-i; disp++) {
+          array[buf[i] + disp + bound * (xmax+1)].possible = true;
         }
       }
     }
@@ -95,11 +95,10 @@ void put_range(bit_t *array, int bound, state_t *S, orientation o, int xmax, int
             max = y;
           }
         } 
-        if (!first)
-          for (int y=min; y <= max; y++) {
-            array[bound + y * (xmax+1)].possible = true;
-          }
       }
+      if (!first)
+        for (int y=min; y <= max; y++)
+          array[bound + y * (xmax+1)].possible = true;
     } else {
       for (int x=0; x <= xmax; x++) {
         if (array[x + bound * (xmax+1)].on || array[x + bound * (xmax+1)].possible) {
@@ -185,7 +184,7 @@ analysis_t *analyze_state(state_t *S) {
     l.y = left_bound.y;
     r.x = right_bound.x;
     r.y = right_bound.y;
-    bool first = true;
+    bool should_use_edge_analysis = true;
 
 	analysis_loop: // shrink border to analyze each time
 
@@ -194,7 +193,7 @@ analysis_t *analyze_state(state_t *S) {
 
 	if (left_bound.x < right_bound.x) {
 		// analyze two vertical lines
-        if (first) {
+        if (should_use_edge_analysis) {
           put_edge(array, left_bound.x, S, VERT, r.x, r.y);
           put_edge(array, right_bound.x, S, VERT, r.x, r.y);
         } else {
@@ -203,7 +202,7 @@ analysis_t *analyze_state(state_t *S) {
         }
 	} else {
 		// analyze single vertical line
-        if (first)
+        if (should_use_edge_analysis)
           put_edge(array, left_bound.x, S, VERT, r.x, r.y);
         else
           put_range(array, left_bound.x, S, VERT, r.x, r.y);
@@ -212,7 +211,7 @@ analysis_t *analyze_state(state_t *S) {
 
 	if (left_bound.y < right_bound.y) {
 		// analyze the two horizontal lines
-        if (first) {
+        if (should_use_edge_analysis) {
           put_edge(array, left_bound.y, S, HORIZ, r.x, r.y);
           put_edge(array, right_bound.y, S, HORIZ, r.x, r.y);
         } else {
@@ -221,7 +220,7 @@ analysis_t *analyze_state(state_t *S) {
         }
 	} else if (!collide) {
 		// analyze single horizontal line
-        if (first)
+        if (should_use_edge_analysis)
           put_edge(array, left_bound.y, S, HORIZ, r.x, r.y);
         else
           put_range(array, left_bound.y, S, HORIZ, r.x, r.y);
@@ -232,7 +231,7 @@ analysis_t *analyze_state(state_t *S) {
 	right_bound.x--;
 	right_bound.y--;
 
-    first = false;
+    should_use_edge_analysis = false;
 	goto analysis_loop;
 }
 

@@ -121,6 +121,12 @@ int work(hashmap_t *map, master_pq_t *master, state_t *start, state_t *end, anal
 
 int main(int argc, char *argv[])
 {
+  if (omp_get_max_threads() > PARALLEL_PROBLEM_MAX_THREADS) {
+    if (omp_get_num_procs() > PARALLEL_PROBLEM_MAX_THREADS)
+      omp_set_num_threads(PARALLEL_PROBLEM_MAX_THREADS);
+    else
+      omp_set_num_threads(omp_get_num_procs());
+  }
   int exit_code = 0;
   state_t *start, *end;
 
