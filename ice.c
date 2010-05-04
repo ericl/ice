@@ -65,7 +65,7 @@ int work(hashmap_t *map, pqueue_t *pq, state_t *start, state_t *end, analysis_t 
 #ifdef DEBUG_VERBOSE
           PrintAnalysis(A);
 #endif
-          if (can_reach_state(A, end)) {
+          if (can_reach_state(A, B)) {
             to_be_added = malloc(sizeof(state_t));
             memcpy(to_be_added, A->state, sizeof(state_t));
             int s = score(A, B);
@@ -121,15 +121,16 @@ int main(int argc, char *argv[])
   pqueue_t *pq = construct_pqueue();
 
   analysis_t *A = analyze_state(start);
+  analysis_t *B = analyze_state(end);
 #ifdef DEBUG_VERBOSE
   PrintAnalysis(A);
 #endif
-  if (can_reach_state(A, end))
+  if (can_reach_state(A, B))
     pq_add(pq, start, 0);
   if (state_equal(start, end))
     return 0;
 
-  exit_code = work(map, pq, start, end, A, analyze_state(end));
+  exit_code = work(map, pq, start, end, A, B);
 
   if (exit_code == 1)
     printf("IMPOSSIBLE\n");

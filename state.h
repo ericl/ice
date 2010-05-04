@@ -18,6 +18,8 @@ typedef struct bit {
   bool possible : 1;
 } bit_t;
 
+// NOTE: ice free()s the array later, do not access
+// from state->analysis!
 typedef struct analysis {
 	struct state *state;
     coord_t l;
@@ -54,8 +56,8 @@ bool all_edges_possible(analysis_t *A, state_t *T) {
     }
   }
   // now scan the END state to see if the edges work
-  for (int i=0; i < T->num_bits; i++) {
-    bit = T->bits[i];
+  for (int j=0; j < T->num_bits; j++) {
+    bit = T->bits[j];
     int lo_d = 0, hi_d = 0, hi_c = 0, lo_c = 0;
     // west edge
     if (bit.x == A->l.x) {
@@ -136,10 +138,11 @@ bool all_coords_in_array(coord_t bound, bit_t *array, state_t *T) {
   return true;
 }
 
-bool can_reach_state(analysis_t *A, state_t *T) {
-	return (A->state->num_bits == T->num_bits)
-        && all_edges_possible(A, T)
-		&& all_coords_in_array(A->r, A->array, T);
+bool can_reach_state(analysis_t *A, analysis_t *B) {
+	return (A->state->num_bits == B->state->num_bits)
+        && A->r.x >= B->r.x && A->r.y >= B->r.y
+        && all_edges_possible(A, B->state)
+		&& all_coords_in_array(A->r, A->array, B->state);
 }
 
 analysis_t *new_analysis(state_t *S, coord_t l, coord_t r, bit_t *array) {
