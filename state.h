@@ -4,6 +4,8 @@
 #include <hashmap.h>
 #include <common.h>
 #include <math.h>
+#include <alloca.h>
+#include <string.h>
 
 typedef struct state {
   struct state *prev;
@@ -12,6 +14,16 @@ typedef struct state {
   int score;
   coord_t *bits;
 } state_t;
+
+void fisher_yates_shuffle(state_t *array, int n) {
+  state_t *tmp = alloca(sizeof(state_t));
+  for (int i=n; i > 1; i--) {
+    int j = rand() % i; // [0, i-1];
+    memcpy(tmp, array + j, sizeof(state_t));
+    memcpy(array + j, array + i - 1, sizeof(state_t));
+    memcpy(array + i - 1, tmp, sizeof(state_t));
+  }
+}
 
 typedef struct bit {
   bool on : 1;
@@ -357,6 +369,9 @@ state_t *possible_next_states(state_t *S, int *num_states) {
     }
   }
   *num_states = n;
+#if SHUFFLE_NEW_STATES
+  fisher_yates_shuffle(states, n);
+#endif
   return states;
 }
 

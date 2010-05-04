@@ -36,16 +36,20 @@ int work(hashmap_t *map, master_pq_t *master, state_t *start, state_t *end, anal
 #if DEBUG
   int perm = 0, added = 0, discard = 0, duplicate = 0;
 #endif
-
+#if PARALLEL_THREAD_LOCAL_QUEUES
+#define QUEUE_INDEX omp_get_thread_num()
+#else
+#define QUEUE_INDEX 0
+#endif
   state_t *current, *to_be_added;
   int num_next;
   bool running = true, history_printed = false, waiting = false;
   int num_waiting = 0;
-  #pragma omp parallel private(num_next, current, A, to_be_added) firstprivate(waiting) if (end->num_bits > PARALLEL_PROBLEM_SIZE_THRESHOLD)
+  #pragma omp parallel private(num_next, current, A, to_be_added) firstprivate(waiting) if (end->num_bits > PARALLEL_PROBLEM_SIZE_THRESHOLD && PARALLEL)
   while (running) {
-    current = indexed_pq_take(master, omp_get_thread_num());
+    current = indexed_pq_take(master, QUEUE_INDEX);
     if (!current)
-      current = global_pq_take(master, omp_get_thread_num());
+      current = global_pq_take(master, QUEUE_INDEX);
     if (current) {
       state_t *next = possible_next_states(current, &num_next);
 #if DEBUG
@@ -69,16 +73,16 @@ int work(hashmap_t *map, master_pq_t *master, state_t *start, state_t *end, anal
 #endif
         } else {
           A = analyze_state(next + i);
+          if (can_reach_state(A, B)) {
 #if DEBUG_VERY_VERBOSE
           PrintAnalysis(A);
 #endif
-          if (can_reach_state(A, B)) {
             to_be_added = malloc(sizeof(state_t));
             memcpy(to_be_added, A->state, sizeof(state_t));
             int s = score(A, B);
             if (s > to_be_added->prev->score)
               s += SCORE_REGRESSION_PENALTY;
-            indexed_pq_add(master, omp_get_thread_num(), to_be_added, s - offset);
+            indexed_pq_add(master, QUEUE_INDEX, to_be_added, s - offset);
 #if DEBUG
             added++;
 #endif
