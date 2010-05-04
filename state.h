@@ -27,108 +27,6 @@ typedef struct analysis {
     bit_t *array;
 } analysis_t;
 
-bool all_edges_possible(analysis_t *A, state_t *T) {
-  int wc = 0, nc = 0, sc = 0, ec = 0;
-  // these hold the CURRENT state's edges
-  coord_t w[T->num_bits];
-  coord_t e[T->num_bits];
-  coord_t n[T->num_bits];
-  coord_t s[T->num_bits];
-  coord_t bit;
-  // first determine the edges for the CURRENT state
-  for (int i=0; i < T->num_bits; i++) {
-    bit = A->state->bits[i];
-    // west edge
-    if (bit.x == A->l.x) {
-      w[wc++] = bit;
-    }
-    // east edge
-    if (bit.x == A->r.x) {
-      e[ec++] = bit;
-    }
-    // north edge
-    if (bit.y == A->l.y) {
-      n[nc++] = bit;
-    }
-    // south edge
-    if (bit.y == A->r.y) {
-      s[sc++] = bit;
-    }
-  }
-  // now scan the END state to see if the edges work
-  for (int j=0; j < T->num_bits; j++) {
-    bit = T->bits[j];
-    int lo_d = 0, hi_d = 0, hi_c = 0, lo_c = 0;
-    // west edge
-    if (bit.x == A->l.x) {
-      for (int i=0; i < wc; i++) {
-        if (w[i].y == bit.y) {
-          goto bit_ok;
-        } else if (w[i].y < bit.y) {
-          if (!lo_c++ || bit.y - w[i].y < lo_d)
-            lo_d = bit.y - w[i].y;
-        } else if (w[i].y > bit.y) {
-          if (!hi_c++ || w[i].y - bit.y < hi_d)
-            hi_d = w[i].y - bit.y;
-        }
-      }
-      if (!lo_c || !hi_c || (hi_c < lo_d && lo_c < hi_d))
-        return false;
-    }
-    // east edge
-    if (bit.x == A->r.x) {
-      for (int i=0; i < ec; i++) {
-        if (e[i].y == bit.y) {
-          goto bit_ok;
-        } else if (e[i].y < bit.y) {
-          if (!lo_c++ || bit.y - e[i].y < lo_d)
-            lo_d = bit.y - e[i].y;
-        } else if (e[i].y > bit.y) {
-          if (!hi_c++ || e[i].y - bit.y < hi_d)
-            hi_d = e[i].y - bit.y;
-        }
-      }
-      if (!lo_c || !hi_c || (hi_c < lo_d && lo_c < hi_d))
-        return false;
-    }
-    // north edge
-    if (bit.y == A->l.y) {
-      for (int i=0; i < nc; i++) {
-        if (n[i].x == bit.x) {
-          goto bit_ok;
-        } else if (n[i].x < bit.x) {
-          if (!lo_c++ || bit.x - n[i].x < lo_d)
-            lo_d = bit.x - n[i].x;
-        } else if (n[i].x > bit.x) {
-          if (!hi_c++ || n[i].x - bit.x < hi_d)
-            hi_d = n[i].x - bit.x;
-        }
-      }
-      if (!lo_c || !hi_c || (hi_c < lo_d && lo_c < hi_d))
-        return false;
-    }
-    // south edge
-    if (bit.y == A->r.y) {
-      for (int i=0; i < sc; i++) {
-        if (s[i].x == bit.x) {
-          goto bit_ok;
-        } else if (s[i].x < bit.x) {
-          if (!lo_c++ || bit.x - s[i].x < lo_d)
-            lo_d = bit.x - s[i].x;
-        } else if (s[i].x > bit.x) {
-          if (!hi_c++ || s[i].x - bit.x < hi_d)
-            hi_d = s[i].x - bit.x;
-        }
-      }
-      if (!lo_c || !hi_c || (hi_c < lo_d && lo_c < hi_d))
-        return false;
-    }
-    bit_ok:
-    ;
-  }
-  return true;
-}
-
 bool all_coords_in_array(coord_t bound, bit_t *array, state_t *T) {
   for (int i=0; i < T->num_bits; i++) {
     coord_t e = T->bits[i];
@@ -141,7 +39,6 @@ bool all_coords_in_array(coord_t bound, bit_t *array, state_t *T) {
 bool can_reach_state(analysis_t *A, analysis_t *B) {
 	return (A->state->num_bits == B->state->num_bits)
         && A->r.x >= B->r.x && A->r.y >= B->r.y
-        && all_edges_possible(A, B->state)
 		&& all_coords_in_array(A->r, A->array, B->state);
 }
 
@@ -154,6 +51,34 @@ analysis_t *new_analysis(state_t *S, coord_t l, coord_t r, bit_t *array) {
     A->r.y = r.y;
     A->array = array;
 	return A;
+}
+
+void put_edge(bit_t *array, int bound, state_t *S, orientation o, int xmax, int ymax) {
+    if (o == VERT) {
+      int buf[ymax+1];
+      int I = 0;
+      for (int y=0; y <= ymax; y++) {
+        if (array[bound + y * (xmax+1)].on)
+          buf[I++] = y;
+        for (int i=0; i < I; i++) {
+          for (int disp=-i; disp < I-i; disp++) {
+            array[bound + (buf[i]+disp) * (xmax+1)].possible = true;
+          }
+        }
+      }
+    } else {
+      int buf[ymax+1];
+      int I = 0;
+      for (int x=0; x <= xmax; x++) {
+        if (array[x + bound * (xmax+1)].on)
+          buf[I++] = x;
+        for (int i=0; i < I; i++) {
+          for (int disp=-i; disp < I-i; disp++) {
+            array[buf[i] + disp + bound * (xmax+1)].possible = true;
+          }
+        }
+      }
+    }
 }
 
 void put_range(bit_t *array, int bound, state_t *S, orientation o, int xmax, int ymax) {
@@ -260,6 +185,7 @@ analysis_t *analyze_state(state_t *S) {
     l.y = left_bound.y;
     r.x = right_bound.x;
     r.y = right_bound.y;
+    bool first = true;
 
 	analysis_loop: // shrink border to analyze each time
 
@@ -268,21 +194,37 @@ analysis_t *analyze_state(state_t *S) {
 
 	if (left_bound.x < right_bound.x) {
 		// analyze two vertical lines
-		put_range(array, left_bound.x, S, VERT, r.x, r.y);
-		put_range(array, right_bound.x, S, VERT, r.x, r.y);
+        if (first) {
+          put_edge(array, left_bound.x, S, VERT, r.x, r.y);
+          put_edge(array, right_bound.x, S, VERT, r.x, r.y);
+        } else {
+          put_range(array, left_bound.x, S, VERT, r.x, r.y);
+          put_range(array, right_bound.x, S, VERT, r.x, r.y);
+        }
 	} else {
 		// analyze single vertical line
-		put_range(array, left_bound.x, S, VERT, r.x, r.y);
+        if (first)
+          put_edge(array, left_bound.x, S, VERT, r.x, r.y);
+        else
+          put_range(array, left_bound.x, S, VERT, r.x, r.y);
 		collide = true;
 	}
 
 	if (left_bound.y < right_bound.y) {
 		// analyze the two horizontal lines
-		put_range(array, left_bound.y, S, HORIZ, r.x, r.y);
-		put_range(array, right_bound.y, S, HORIZ, r.x, r.y);
+        if (first) {
+          put_edge(array, left_bound.y, S, HORIZ, r.x, r.y);
+          put_edge(array, right_bound.y, S, HORIZ, r.x, r.y);
+        } else {
+          put_range(array, left_bound.y, S, HORIZ, r.x, r.y);
+          put_range(array, right_bound.y, S, HORIZ, r.x, r.y);
+        }
 	} else if (!collide) {
 		// analyze single horizontal line
-		put_range(array, left_bound.y, S, HORIZ, r.x, r.y);
+        if (first)
+          put_edge(array, left_bound.y, S, HORIZ, r.x, r.y);
+        else
+          put_range(array, left_bound.y, S, HORIZ, r.x, r.y);
 	}
 	
 	left_bound.x++;
@@ -290,6 +232,7 @@ analysis_t *analyze_state(state_t *S) {
 	right_bound.x--;
 	right_bound.y--;
 
+    first = false;
 	goto analysis_loop;
 }
 

@@ -3,6 +3,7 @@
 #include <state.h>
 #include <pqueue.h>
 #include <omp.h>
+#include <unistd.h>
 
 state_t *ReadPBM(char *, int *, int *);
 void PrintAnalysis(analysis_t *);
@@ -40,7 +41,7 @@ int work(hashmap_t *map, master_pq_t *master, state_t *start, state_t *end, anal
   int num_next;
   bool running = true, history_printed = false, waiting = false;
   int num_waiting = 0;
-  #pragma omp parallel private(num_next, current, A, to_be_added) firstprivate(waiting)
+  #pragma omp parallel private(num_next, current, A, to_be_added) firstprivate(waiting) if (end->num_bits > PARALLEL_PROBLEM_SIZE_THRESHOLD)
   while (running) {
     current = indexed_pq_take(master, omp_get_thread_num());
     if (!current)
