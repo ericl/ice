@@ -3,9 +3,7 @@
 
 //#define DEBUG_VERY_VERBOSE
 //#define DEBUG_VERBOSE
-#define DEBUG
-
-#define PARALLEL
+//#define DEBUG
 
 #define HASHMAP_DEFAULT_CAPACITY 100003 // prime
 #define QUEUE_DEFAULT_CAPACITY 100

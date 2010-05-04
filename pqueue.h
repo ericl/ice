@@ -4,8 +4,7 @@
 #include <queue.h>
 #include <math.h>
 #include <cbuf.h>
-
-// goddamnit, a fake priority queue
+#include <omp.h>
 
 typedef struct pqnode {
 	int prio;
@@ -17,6 +16,12 @@ typedef struct pqueue {
 	pqnode_t *head;
 	cbuf_t *buf;
 } pqueue_t;
+
+typedef struct master_pq {
+	int num;
+	pqueue_t **queues;
+	omp_lock_t *locks;
+} master_pq_t;
 
 pqnode_t *construct_pqnode(int prio, pqnode_t *higher) {
 	pqnode_t *head = malloc(sizeof(pqnode_t));
@@ -33,6 +38,18 @@ pqueue_t *construct_pqueue(int bufsize) {
 	pq->head = construct_pqnode(5, pq->head);
 	pq->buf = new_buffer(bufsize);
 	return pq;
+}
+
+master_pq_t *new_master_pq(int num, int bufsize) {
+	master_pq_t *master = malloc(sizeof(master_pq_t));
+	master->queues = malloc(num * sizeof(pqueue_t*));
+	master->locks = malloc(num * sizeof(omp_lock_t));
+	for (int i=0; i < num; i++) {
+		master->queues[i] = construct_pqueue(bufsize);
+		omp_init_lock(master->locks + i);
+	}
+	master->num = num;
+	return master;
 }
 
 int num_tail(pqnode_t *head) {
@@ -89,6 +106,34 @@ state_t *pq_take(pqueue_t *pq) {
 		return cbuf_remove(pq->buf)->ptr;
 	}
 	return take(lowest->queue);
+}
+
+void indexed_pq_add(master_pq_t *master, int index, state_t *state, int priority) {
+	omp_set_lock(master->locks + index);
+	pq_add(master->queues[index], state, priority);
+	omp_unset_lock(master->locks + index);
+}
+
+state_t *indexed_pq_take(master_pq_t *master, int index) {
+	omp_set_lock(master->locks + index);
+	state_t *ret = pq_take(master->queues[index]);
+	omp_unset_lock(master->locks + index);
+	return ret;
+}
+
+state_t *global_pq_take(master_pq_t *master, int index) {
+	state_t *ret = NULL;
+	for (int i=index; i < master->num; i++) {
+		ret = indexed_pq_take(master, i);
+		if (ret)
+			return ret;
+	}
+	for (int i=0; i < index; i++) {
+		ret = indexed_pq_take(master, i);
+		if (ret)
+			return ret;
+	}
+	return ret;
 }
 
 #endif

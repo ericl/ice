@@ -3,6 +3,7 @@
 
 #include <state.h>
 #include <common.h>
+#include <omp.h>
 
 typedef struct entry {
 	coord_t *bits;
@@ -14,6 +15,7 @@ typedef struct hashmap {
 	int capacity;
 	int size;
 	int maxlen;
+	omp_lock_t lock;
 } hashmap_t;
 
 hashmap_t *create_hashmap() {
@@ -22,6 +24,7 @@ hashmap_t *create_hashmap() {
 	map->maxlen = 0;
 	map->capacity = HASHMAP_DEFAULT_CAPACITY;
 	map->entries = calloc(HASHMAP_DEFAULT_CAPACITY, sizeof(entry_t));
+	omp_init_lock(&map->lock);
 	return map;
 }
 
@@ -47,11 +50,14 @@ bool put(hashmap_t *map, coord_t *bits, int num_bits) {
 	if (index < 0)
 		index *= -1;
 	index %= map->capacity;
+	omp_set_lock(&map->lock);
 	entry_t *entry = map->entries[index];
 	int length = 0;
 	while (entry) {
-		if (coord_set_equal(entry->bits, bits, num_bits))
+		if (coord_set_equal(entry->bits, bits, num_bits)) {
+			omp_unset_lock(&map->lock);
 			return true;
+		}
 		entry = entry->next;
 		length++;
 	}
@@ -63,17 +69,22 @@ bool put(hashmap_t *map, coord_t *bits, int num_bits) {
 	entry->bits = bits;
 	entry->next = map->entries[index];
 	map->entries[index] = entry;
+	omp_unset_lock(&map->lock);
 	return false;
 }
 
 bool contains(hashmap_t *map, coord_t *bits, int num_bits) {
 	int index = hash(bits, num_bits) % map->capacity;
+	omp_set_lock(&map->lock);
 	entry_t *entry = map->entries[index];
 	while (entry) {
-		if (coord_set_equal(entry->bits, bits, num_bits))
+		if (coord_set_equal(entry->bits, bits, num_bits)) {
+			omp_unset_lock(&map->lock);
 			return true;
+		}
 		entry = entry->next;
 	}
+	omp_unset_lock(&map->lock);
 	return false;
 }
 

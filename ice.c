@@ -30,33 +30,25 @@ void print_history(state_t *S, state_t *end, int offset) {
 #endif
 }
 
-int work(hashmap_t *map, pqueue_t *pq, state_t *start, state_t *end, analysis_t *A, analysis_t *B) {
+int work(hashmap_t *map, master_pq_t *master, state_t *start, state_t *end, analysis_t *A, analysis_t *B) {
   int offset = score(A, B);
   int perm = 0, added = 0, discard = 0, duplicate = 0;
 
   state_t *current, *to_be_added;
-  bool test[4*start->num_bits];
   int num_next;
-#ifdef PARALLEL
   bool running = true, history_printed = false, waiting = false;
   int num_waiting = 0;
-  #pragma omp parallel private(test, num_next, current, A, to_be_added) firstprivate(waiting)
+  #pragma omp parallel private(num_next, current, A, to_be_added) firstprivate(waiting)
   while (running) {
-    #pragma omp critical (pq)
-#else
-  while (true) {
-#endif
-    current = pq_take(pq);
-    if (current != NULL) {
+    current = indexed_pq_take(master, omp_get_thread_num());
+    if (!current)
+      current = global_pq_take(master, omp_get_thread_num());
+    if (current) {
       state_t *next = possible_next_states(current, &num_next);
       perm++;
-      #pragma omp critical (map)
-      for (int i=0; i < num_next; i++)
-        test[i] = put(map, (next + i)->bits, (next + i)->num_bits);
       for (int i=0; i < num_next; i++) {
         if (state_equal(next + i, end)) {
-#ifdef PARALLEL
-          #pragma omp critical (all)
+          #pragma omp critical
           {
             if (!history_printed) {
               print_history(next + i, end, offset);
@@ -64,16 +56,9 @@ int work(hashmap_t *map, pqueue_t *pq, state_t *start, state_t *end, analysis_t 
               running = false;
             }
           }
-#else
-          print_history(next + i, end, offset);
-          return 0;
-#endif
           goto stop;
         }
-#ifdef PARALLEL
-        #pragma omp critical (map)
-#endif
-        if (test[i]) {
+        if (put(map, (next + i)->bits, (next + i)->num_bits)) {
           duplicate++;
         } else {
           A = analyze_state(next + i);
@@ -86,10 +71,7 @@ int work(hashmap_t *map, pqueue_t *pq, state_t *start, state_t *end, analysis_t 
             int s = score(A, B);
             if (s > to_be_added->prev->score)
               s += SCORE_REGRESSION_PENALTY;
-#ifdef PARALLEL
-            #pragma omp critical (pq)
-#endif
-            pq_add(pq, to_be_added, s - offset);
+            indexed_pq_add(master, omp_get_thread_num(), to_be_added, s - offset);
             added++;
           } else {
             discard++;
@@ -99,11 +81,8 @@ int work(hashmap_t *map, pqueue_t *pq, state_t *start, state_t *end, analysis_t 
         }
       }
       free(next);
-#ifndef PARALLEL
-    }
-#else
     } else {
-      #pragma omp critical (all)
+      #pragma omp critical
       {
         if (!waiting) {
           waiting = true;
@@ -113,7 +92,6 @@ int work(hashmap_t *map, pqueue_t *pq, state_t *start, state_t *end, analysis_t 
         }
       }
     }
-#endif
     stop:;
   }
 #ifdef DEBUG
@@ -123,12 +101,10 @@ int work(hashmap_t *map, pqueue_t *pq, state_t *start, state_t *end, analysis_t 
   printf("%d states still queued\n", added - perm + 1);
   printf("%d is max hash table load\n", map->maxlen);
   printf("%d is hash table size\n", map->size);
-  printf("%d is depth of priority queue\n", pq_stat_list_depth(pq));
+//  printf("%d is depth of priority queue\n", pq_stat_list_depth(pq));
 #endif
-#ifdef PARALLEL
   if (history_printed)
     return 0;
-#endif
   return 1;
 }
 
@@ -141,7 +117,7 @@ int main(int argc, char *argv[])
   end = ReadPBM(argv[2], &xMax, &yMax); // assume same size arrays
 
   hashmap_t *map = create_hashmap();
-  pqueue_t *pq = construct_pqueue(80);
+  master_pq_t *master = new_master_pq(omp_get_max_threads(), 80);
 
   analysis_t *A = analyze_state(start);
   analysis_t *B = analyze_state(end);
@@ -149,11 +125,11 @@ int main(int argc, char *argv[])
   PrintAnalysis(A);
 #endif
   if (can_reach_state(A, B))
-    pq_add(pq, start, 0);
+    indexed_pq_add(master, 0, start, 0);
   if (state_equal(start, end))
     return 0;
 
-  exit_code = work(map, pq, start, end, A, B);
+  exit_code = work(map, master, start, end, A, B);
 
   if (exit_code == 1)
     printf("IMPOSSIBLE\n");
@@ -215,7 +191,6 @@ state_t *ReadPBM(char *filename, int *xMax_ptr, int *yMax_ptr)
       if (((int)getc(fp)-'0')) {
         init_state->num_bits++;
         if (init_state->num_bits >= size) {
-          printf("REALLOC\n");
           size *= 2;
           int diff = pos - init_state->bits;
           init_state->bits = realloc(init_state->bits, size*sizeof(coord_t));
