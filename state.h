@@ -411,25 +411,25 @@ state_t *possible_next_states(state_t *S, int *num_states) {
     coord_t bit = S->bits[i];
     coord_t *west = NULL, *east = NULL, *north = NULL, *south = NULL;
     bit_dir(S, bit, &west, &east, &north, &south);
-    if (west) {
-      replace_bit(S, bit, *west, pos++, WEST);
-      n++;
-      free(west);
-    }
     if (east) {
       replace_bit(S, bit, *east, pos++, EAST);
       n++;
       free(east);
     }
-    if (north) {
-      replace_bit(S, bit, *north, pos++, NORTH);
-      n++;
-      free(north);
-    }
     if (south) {
       replace_bit(S, bit, *south, pos++, SOUTH);
       n++;
       free(south);
+    }
+    if (west) {
+      replace_bit(S, bit, *west, pos++, WEST);
+      n++;
+      free(west);
+    }
+    if (north) {
+      replace_bit(S, bit, *north, pos++, NORTH);
+      n++;
+      free(north);
     }
   }
   *num_states = n;

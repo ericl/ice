@@ -149,6 +149,7 @@ int main(int argc, char *argv[])
     exit(2);
   }
 
+#if MEMORIZE_61C_SOLUTION
   int foo, bar;
   state_t *s = ReadPBM("data/start61C.pbm", &foo, &bar);
   state_t *e = ReadPBM("data/end61C.pbm", &foo, &bar);
@@ -158,6 +159,7 @@ int main(int argc, char *argv[])
       return 0;
     }
   }
+#endif
 
   hashmap_t *map = create_hashmap();
   master_pq_t *master = new_master_pq(omp_get_max_threads(), QUEUE_DELAY);
