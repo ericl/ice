@@ -15,6 +15,12 @@ typedef struct state {
   coord_t *bits;
 } state_t;
 
+void setup_state(state_t *state) {
+  state->prev = NULL;
+  state->history = "undefined";
+  state->score = SCORE_UNDEFINED_SCORE;
+}
+
 void fisher_yates_shuffle(state_t *array, int n) {
   state_t *tmp = alloca(sizeof(state_t));
   for (int i=n; i > 1; i--) {
@@ -37,6 +43,7 @@ typedef struct analysis {
     coord_t l;
     coord_t r;
     bit_t *array;
+    bool valid;
 } analysis_t;
 
 bool all_coords_in_array(coord_t bound, bit_t *array, state_t *T) {
@@ -49,7 +56,7 @@ bool all_coords_in_array(coord_t bound, bit_t *array, state_t *T) {
 }
 
 bool can_reach_state(analysis_t *A, analysis_t *B) {
-	return (A->state->num_bits == B->state->num_bits)
+	return A->valid && (A->state->num_bits == B->state->num_bits)
         && A->r.x >= B->r.x && A->r.y >= B->r.y
 		&& all_coords_in_array(A->r, A->array, B->state);
 }
@@ -62,10 +69,14 @@ analysis_t *new_analysis(state_t *S, coord_t l, coord_t r, bit_t *array) {
     A->r.x = r.x;
     A->r.y = r.y;
     A->array = array;
+    A->valid = true;
 	return A;
 }
 
-void put_edge(bit_t *array, int bound, state_t *S, orientation o, int xmax, int ymax) {
+bool put_edge(bit_t *array, int bound, state_t *S, orientation o, int xmax, int ymax, analysis_t *end, direction d) {
+    bool lon = false;
+    bool ron = false;
+    int endc = 0;
     if (o == VERT) {
       int buf[ymax+1];
       int I = 0;
@@ -73,8 +84,28 @@ void put_edge(bit_t *array, int bound, state_t *S, orientation o, int xmax, int 
         if (array[bound + y * (xmax+1)].on)
           buf[I++] = y;
       }
+      if (end) {
+        lon = end->array[bound + buf[0]*(end->r.x+1)].on;
+        ron = end->array[bound + buf[I-1]*(end->r.x+1)].on;
+        // we're sure this matches the edge exactly
+        if ((d == WEST && bound == end->l.x) || (d == EAST && bound == end->r.x)) {
+          for (int y=0; y <= end->r.y; y++)
+            if (end->array[bound + y*(end->r.x+1)].on)
+              endc++;
+          if (endc > I)
+            return false;
+        }
+      }
       for (int i=0; i < I; i++) {
         for (int disp=-i; disp < I-i; disp++) {
+          if (end) {
+            if (disp != 0 && I == 2 && ((lon && ron) || (!lon && !ron && I == endc)))
+              continue;
+            if (i == 1 && disp < 0 && lon)
+              continue;
+            if (i == I-2 && disp > 0 && ron)
+              continue;
+          }
           array[bound + (buf[i]+disp) * (xmax+1)].possible = true;
         }
       }
@@ -85,12 +116,32 @@ void put_edge(bit_t *array, int bound, state_t *S, orientation o, int xmax, int 
         if (array[x + bound * (xmax+1)].on)
           buf[I++] = x;
       }
+      if (end) {
+        if ((d == NORTH && bound == end->l.y) || (d == SOUTH && bound == end->r.y)) {
+          lon = end->array[bound + buf[0]*(end->r.x+1)].on;
+          ron = end->array[bound + buf[I-1]*(end->r.x+1)].on;
+          for (int x=0; x <= end->r.x; x++)
+            if (end->array[x + bound*(end->r.x+1)].on)
+              endc++;
+          if (endc > I)
+            return false;
+        }
+      }
       for (int i=0; i < I; i++) {
         for (int disp=-i; disp < I-i; disp++) {
+          if (end) {
+            if (disp != 0 && I == 2 && ((lon && ron) || (!lon && !ron && I == endc)))
+              continue;
+            if (i == 1 && disp < 0 && lon)
+              continue;
+            if (i == I-2 && disp > 0 && ron)
+              continue;
+          }
           array[buf[i] + disp + bound * (xmax+1)].possible = true;
         }
       }
     }
+    return true;
 }
 
 void put_range(bit_t *array, int bound, state_t *S, orientation o, int xmax, int ymax) {
@@ -169,7 +220,7 @@ int score_node_dist(state_t *S, state_t *end, analysis_t *S_a, analysis_t *end_a
   return edgedist;
 }
 
-analysis_t *analyze_state(state_t *S) {
+analysis_t *analyze_state(state_t *S, analysis_t *end) {
 	coord_t left_bound, right_bound, l, r;
     left_bound.x = 0;
     left_bound.y = 0;
@@ -206,17 +257,20 @@ analysis_t *analyze_state(state_t *S) {
 	if (left_bound.x < right_bound.x) {
 		// analyze two vertical lines
         if (should_use_edge_analysis) {
-          put_edge(array, left_bound.x, S, VERT, r.x, r.y);
-          put_edge(array, right_bound.x, S, VERT, r.x, r.y);
+          if (!put_edge(array, left_bound.x, S, VERT, r.x, r.y, end, WEST))
+            goto bad_analysis;
+          if (!put_edge(array, right_bound.x, S, VERT, r.x, r.y, end, EAST))
+            goto bad_analysis;
         } else {
           put_range(array, left_bound.x, S, VERT, r.x, r.y);
           put_range(array, right_bound.x, S, VERT, r.x, r.y);
         }
 	} else {
 		// analyze single vertical line
-        if (should_use_edge_analysis)
-          put_edge(array, left_bound.x, S, VERT, r.x, r.y);
-        else
+        if (should_use_edge_analysis) {
+          if (!put_edge(array, left_bound.x, S, VERT, r.x, r.y, end, WEST))
+            goto bad_analysis;
+        } else
           put_range(array, left_bound.x, S, VERT, r.x, r.y);
 		collide = true;
 	}
@@ -224,17 +278,20 @@ analysis_t *analyze_state(state_t *S) {
 	if (left_bound.y < right_bound.y) {
 		// analyze the two horizontal lines
         if (should_use_edge_analysis) {
-          put_edge(array, left_bound.y, S, HORIZ, r.x, r.y);
-          put_edge(array, right_bound.y, S, HORIZ, r.x, r.y);
+          if (!put_edge(array, left_bound.y, S, HORIZ, r.x, r.y, end, NORTH))
+            goto bad_analysis;
+          if (!put_edge(array, right_bound.y, S, HORIZ, r.x, r.y, end, SOUTH))
+            goto bad_analysis;
         } else {
           put_range(array, left_bound.y, S, HORIZ, r.x, r.y);
           put_range(array, right_bound.y, S, HORIZ, r.x, r.y);
         }
 	} else if (!collide) {
 		// analyze single horizontal line
-        if (should_use_edge_analysis)
-          put_edge(array, left_bound.y, S, HORIZ, r.x, r.y);
-        else
+        if (should_use_edge_analysis) {
+          if (!put_edge(array, left_bound.y, S, HORIZ, r.x, r.y, end, NORTH))
+            goto bad_analysis;
+        } else
           put_range(array, left_bound.y, S, HORIZ, r.x, r.y);
 	}
 	
@@ -245,6 +302,13 @@ analysis_t *analyze_state(state_t *S) {
 
     should_use_edge_analysis = false;
 	goto analysis_loop;
+
+    bad_analysis:
+    ;
+
+    analysis_t *a = new_analysis(S, l, r, array);
+    a->valid = false;
+    return a;
 }
 
 int score(analysis_t *A, analysis_t *B) {
@@ -283,7 +347,7 @@ void replace_bit(state_t *S, coord_t old, coord_t dest, state_t *next, direction
       next->bits[i].y = bit.y;
     }
   }
-  next->score = SCORE_UNDEFINED_SCORE;
+  setup_state(next);
   next->num_bits = S->num_bits;
   next->history = malloc(15*sizeof(char)); // that's room for 6-digit #'s
   next->prev = S;

@@ -1,5 +1,5 @@
 #!/bin/bash
-echo "This never finishes, which is silly given that the state
+echo "This takes a long time, which is silly given that the state
 1 move previous is trivially findable."
 
 time (

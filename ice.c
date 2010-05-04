@@ -22,7 +22,7 @@ void print_history(state_t *S, state_t *end, int offset) {
 #endif
     print_history(S->prev, end, offset);
 #if DEBUG
-  printf("s=%d, ", score(analyze_state(S), analyze_state(end)) - offset);
+  printf("s=%d, ", score(analyze_state(S, NULL), analyze_state(end, NULL)) - offset);
 #endif
   printf("%s\n", S->history);
 #if DEBUG_VERBOSE
@@ -72,10 +72,13 @@ int work(hashmap_t *map, master_pq_t *master, state_t *start, state_t *end, anal
           duplicate++;
 #endif
         } else {
-          A = analyze_state(next + i);
-          if (can_reach_state(A, B)) {
+          A = analyze_state(next + i, B);
 #if DEBUG_VERY_VERBOSE
           PrintAnalysis(A);
+#endif
+          if (can_reach_state(A, B)) {
+#if DEBUG_VERY_VERBOSE
+            printf("(valid)\n");
 #endif
             to_be_added = malloc(sizeof(state_t));
             memcpy(to_be_added, A->state, sizeof(state_t));
@@ -140,9 +143,9 @@ int main(int argc, char *argv[])
   hashmap_t *map = create_hashmap();
   master_pq_t *master = new_master_pq(omp_get_max_threads(), QUEUE_DELAY);
 
-  analysis_t *A = analyze_state(start);
-  analysis_t *B = analyze_state(end);
-#if DEBUG_VERBOSE
+  analysis_t *B = analyze_state(end, NULL);
+  analysis_t *A = analyze_state(start, B);
+#if DEBUG_VERY_VERBOSE
   PrintAnalysis(A);
 #endif
   if (can_reach_state(A, B))
@@ -188,12 +191,11 @@ state_t *ReadPBM(char *filename, int *xMax_ptr, int *yMax_ptr)
   FILE *fp;
   char c, pbm_type[3];  // P[1-6], two characters. We assume P1 (bitmap)
   state_t *init_state = malloc(sizeof(state_t));
+  setup_state(init_state);
   int size = 100;
   init_state->bits = malloc(size*sizeof(coord_t));
   init_state->num_bits = 0;
-  init_state->prev = NULL;
   init_state->history = "read from file";
-  init_state->score = SCORE_UNDEFINED_SCORE;
   coord_t *pos = init_state->bits;
 
   fp = fopen(filename,"r");
