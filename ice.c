@@ -34,18 +34,25 @@ int work(hashmap_t *map, pqueue_t *pq, state_t *start, state_t *end, analysis_t 
   int offset = score(A, B);
   int perm = 0, added = 0, discard = 0, duplicate = 0;
 
-  bool test, running = true, history_printed = false, waiting = false;
-  int num_next, num_waiting = 0;
   state_t *current, *to_be_added;
+  bool test;
+  int num_next;
+#ifdef PARALLEL
+  bool running = true, history_printed = false, waiting = false;
+  int num_waiting = 0;
   #pragma omp parallel private(test, num_next, current, A, to_be_added) firstprivate(waiting)
   while (running) {
     #pragma omp critical (pq)
+#else
+  while (true) {
+#endif
     current = pq_take(pq);
     if (current != NULL) {
       state_t *next = possible_next_states(current, &num_next);
       perm++;
       for (int i=0; i < num_next; i++) {
         if (state_equal(next + i, end)) {
+#ifdef PARALLEL
           #pragma omp critical (all)
           {
             if (!history_printed) {
@@ -54,9 +61,15 @@ int work(hashmap_t *map, pqueue_t *pq, state_t *start, state_t *end, analysis_t 
               running = false;
             }
           }
+#else
+          print_history(next + i, end, offset);
+          return 0;
+#endif
           goto stop;
         }
+#ifdef PARALLEL
         #pragma omp critical (map)
+#endif
         test = put(map, (next + i)->bits, (next + i)->num_bits);
         if (test) {
           duplicate++;
@@ -71,7 +84,9 @@ int work(hashmap_t *map, pqueue_t *pq, state_t *start, state_t *end, analysis_t 
             int s = score(A, B);
             if (s > to_be_added->prev->score)
               s += SCORE_REGRESSION_PENALTY;
+#ifdef PARALLEL
             #pragma omp critical (pq)
+#endif
             pq_add(pq, to_be_added, s - offset);
             added++;
           } else {
@@ -82,6 +97,9 @@ int work(hashmap_t *map, pqueue_t *pq, state_t *start, state_t *end, analysis_t 
         }
       }
       free(next);
+#ifndef PARALLEL
+    }
+#else
     } else {
       #pragma omp critical (all)
       {
@@ -93,6 +111,7 @@ int work(hashmap_t *map, pqueue_t *pq, state_t *start, state_t *end, analysis_t 
         }
       }
     }
+#endif
     stop:;
   }
 #ifdef DEBUG
@@ -104,8 +123,10 @@ int work(hashmap_t *map, pqueue_t *pq, state_t *start, state_t *end, analysis_t 
   printf("%d is hash table size\n", map->size);
   printf("%d is depth of priority queue\n", pq_stat_list_depth(pq));
 #endif
+#ifdef PARALLEL
   if (history_printed)
     return 0;
+#endif
   return 1;
 }
 

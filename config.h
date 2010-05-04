@@ -5,7 +5,9 @@
 //#define DEBUG_VERBOSE
 //#define DEBUG
 
-#define HASHMAP_DEFAULT_CAPACITY 93563 // prime
+#define PARALLEL
+
+#define HASHMAP_DEFAULT_CAPACITY 100003 // prime
 #define QUEUE_DEFAULT_CAPACITY 100
 #define QUEUE_BUFFER_SIZE 80 // affects breadth of search
 

@@ -1,9 +1,9 @@
 #!/bin/bash
 
-if [ -n $1 ]; then
+if [ -n "$1" ]; then
 	X=$1
 else
-	X=0
+	X=1
 fi
 
 time (
