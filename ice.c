@@ -35,7 +35,7 @@ int work(hashmap_t *map, pqueue_t *pq, state_t *start, state_t *end, analysis_t 
   int perm = 0, added = 0, discard = 0, duplicate = 0;
 
   state_t *current, *to_be_added;
-  bool test;
+  bool test[4*start->num_bits];
   int num_next;
 #ifdef PARALLEL
   bool running = true, history_printed = false, waiting = false;
@@ -50,6 +50,9 @@ int work(hashmap_t *map, pqueue_t *pq, state_t *start, state_t *end, analysis_t 
     if (current != NULL) {
       state_t *next = possible_next_states(current, &num_next);
       perm++;
+      #pragma omp critical (map)
+      for (int i=0; i < num_next; i++)
+        test[i] = put(map, (next + i)->bits, (next + i)->num_bits);
       for (int i=0; i < num_next; i++) {
         if (state_equal(next + i, end)) {
 #ifdef PARALLEL
@@ -70,8 +73,7 @@ int work(hashmap_t *map, pqueue_t *pq, state_t *start, state_t *end, analysis_t 
 #ifdef PARALLEL
         #pragma omp critical (map)
 #endif
-        test = put(map, (next + i)->bits, (next + i)->num_bits);
-        if (test) {
+        if (test[i]) {
           duplicate++;
         } else {
           A = analyze_state(next + i);

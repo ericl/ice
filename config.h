@@ -3,7 +3,7 @@
 
 //#define DEBUG_VERY_VERBOSE
 //#define DEBUG_VERBOSE
-//#define DEBUG
+#define DEBUG
 
 #define PARALLEL
 

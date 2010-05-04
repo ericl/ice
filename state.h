@@ -388,32 +388,33 @@ void bit_dir(state_t *S, coord_t bit, coord_t **west, coord_t **east, coord_t **
 state_t *possible_next_states(state_t *S, int *num_states) {
   state_t *states = malloc(4*sizeof(state_t)*S->num_bits);
   state_t *pos = states;
-  *num_states = 0;
+  int n = 0;
   for (int i=0; i < S->num_bits; i++) {
     coord_t bit = S->bits[i];
     coord_t *west = NULL, *east = NULL, *north = NULL, *south = NULL;
     bit_dir(S, bit, &west, &east, &north, &south);
     if (west) {
       replace_bit(S, bit, *west, pos++, WEST);
-      *num_states = *num_states + 1;
+      n++;
       free(west);
     }
     if (east) {
       replace_bit(S, bit, *east, pos++, EAST);
-      *num_states = *num_states + 1;
+      n++;
       free(east);
     }
     if (north) {
       replace_bit(S, bit, *north, pos++, NORTH);
-      *num_states = *num_states + 1;
+      n++;
       free(north);
     }
     if (south) {
       replace_bit(S, bit, *south, pos++, SOUTH);
-      *num_states = *num_states + 1;
+      n++;
       free(south);
     }
   }
+  *num_states = n;
   return states;
 }
 
