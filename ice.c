@@ -10,21 +10,21 @@ void print_state(state_t *);
 int xMax, yMax;
 
 void print_history(state_t *S, state_t *end, int offset) {
-#ifdef DEBUG
+#if DEBUG
   if (!S)
 #else
   if (!S || !S->prev)
 #endif
     return;
-#ifdef DEBUG
+#if DEBUG
   if (S->prev)
 #endif
     print_history(S->prev, end, offset);
-#ifdef DEBUG
+#if DEBUG
   printf("s=%d, ", score(analyze_state(S), analyze_state(end)) - offset);
 #endif
   printf("%s\n", S->history);
-#ifdef DEBUG_VERBOSE
+#if DEBUG_VERBOSE
   print_state(S);
   PrintPBM(S->bits, S->num_bits, xMax, yMax);
 #endif
@@ -32,7 +32,9 @@ void print_history(state_t *S, state_t *end, int offset) {
 
 int work(hashmap_t *map, master_pq_t *master, state_t *start, state_t *end, analysis_t *A, analysis_t *B) {
   int offset = score(A, B);
+#if DEBUG
   int perm = 0, added = 0, discard = 0, duplicate = 0;
+#endif
 
   state_t *current, *to_be_added;
   int num_next;
@@ -45,7 +47,9 @@ int work(hashmap_t *map, master_pq_t *master, state_t *start, state_t *end, anal
       current = global_pq_take(master, omp_get_thread_num());
     if (current) {
       state_t *next = possible_next_states(current, &num_next);
+#if DEBUG
       perm++;
+#endif
       for (int i=0; i < num_next; i++) {
         if (state_equal(next + i, end)) {
           #pragma omp critical
@@ -59,10 +63,12 @@ int work(hashmap_t *map, master_pq_t *master, state_t *start, state_t *end, anal
           goto stop;
         }
         if (put(map, (next + i)->bits, (next + i)->num_bits)) {
+#if DEBUG
           duplicate++;
+#endif
         } else {
           A = analyze_state(next + i);
-#ifdef DEBUG_VERY_VERBOSE
+#if DEBUG_VERY_VERBOSE
           PrintAnalysis(A);
 #endif
           if (can_reach_state(A, B)) {
@@ -72,9 +78,13 @@ int work(hashmap_t *map, master_pq_t *master, state_t *start, state_t *end, anal
             if (s > to_be_added->prev->score)
               s += SCORE_REGRESSION_PENALTY;
             indexed_pq_add(master, omp_get_thread_num(), to_be_added, s - offset);
+#if DEBUG
             added++;
+#endif
           } else {
+#if DEBUG
             discard++;
+#endif
           }
           free(A->array);
           free(A);
@@ -94,7 +104,7 @@ int work(hashmap_t *map, master_pq_t *master, state_t *start, state_t *end, anal
     }
     stop:;
   }
-#ifdef DEBUG
+#if DEBUG
   printf("%d states tried\n", perm);
   printf("%d invalid branches eliminated\n", discard);
   printf("%d duplicate branches eliminated\n", duplicate);
@@ -121,7 +131,7 @@ int main(int argc, char *argv[])
 
   analysis_t *A = analyze_state(start);
   analysis_t *B = analyze_state(end);
-#ifdef DEBUG_VERBOSE
+#if DEBUG_VERBOSE
   PrintAnalysis(A);
 #endif
   if (can_reach_state(A, B))

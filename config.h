@@ -1,9 +1,9 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-//#define DEBUG_VERY_VERBOSE
-//#define DEBUG_VERBOSE
-//#define DEBUG
+#define DEBUG_VERY_VERBOSE 0
+#define DEBUG_VERBOSE 0
+#define DEBUG 0
 
 #define HASHMAP_DEFAULT_CAPACITY 100003 // prime
 #define QUEUE_DEFAULT_CAPACITY 100
