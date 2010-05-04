@@ -117,7 +117,7 @@ int main(int argc, char *argv[])
   end = ReadPBM(argv[2], &xMax, &yMax); // assume same size arrays
 
   hashmap_t *map = create_hashmap();
-  master_pq_t *master = new_master_pq(omp_get_max_threads(), 80);
+  master_pq_t *master = new_master_pq(omp_get_max_threads(), QUEUE_DELAY);
 
   analysis_t *A = analyze_state(start);
   analysis_t *B = analyze_state(end);
