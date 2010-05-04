@@ -62,7 +62,7 @@ int work(hashmap_t *map, pqueue_t *pq, state_t *start, state_t *end, analysis_t 
           duplicate++;
         } else {
           A = analyze_state(next + i);
-#ifdef DEBUG_VERBOSE
+#ifdef DEBUG_VERY_VERBOSE
           PrintAnalysis(A);
 #endif
           if (can_reach_state(A, B)) {
@@ -118,7 +118,7 @@ int main(int argc, char *argv[])
   end = ReadPBM(argv[2], &xMax, &yMax); // assume same size arrays
 
   hashmap_t *map = create_hashmap();
-  pqueue_t *pq = construct_pqueue();
+  pqueue_t *pq = construct_pqueue(80);
 
   analysis_t *A = analyze_state(start);
   analysis_t *B = analyze_state(end);

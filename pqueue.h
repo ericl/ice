@@ -3,6 +3,7 @@
 
 #include <queue.h>
 #include <math.h>
+#include <cbuf.h>
 
 // goddamnit, a fake priority queue
 
@@ -14,6 +15,7 @@ typedef struct pqnode {
 
 typedef struct pqueue {
 	pqnode_t *head;
+	cbuf_t *buf;
 } pqueue_t;
 
 pqnode_t *construct_pqnode(int prio, pqnode_t *higher) {
@@ -24,11 +26,12 @@ pqnode_t *construct_pqnode(int prio, pqnode_t *higher) {
 	return head;
 }
 
-pqueue_t *construct_pqueue() {
+pqueue_t *construct_pqueue(int bufsize) {
 	pqueue_t *pq = malloc(sizeof(pqueue_t));
 	pq->head = construct_pqnode(20, NULL);
 	pq->head = construct_pqnode(10, pq->head);
 	pq->head = construct_pqnode(5, pq->head);
+	pq->buf = new_buffer(bufsize);
 	return pq;
 }
 
@@ -51,10 +54,10 @@ pqnode_t *lowest_node(pqnode_t *head) {
 }
 
 bool pq_isempty(pqueue_t *pq) {
-	return !lowest_node(pq->head);
+	return !lowest_node(pq->head) && cbuf_empty(pq->buf);
 }
 
-void pq_add(pqueue_t *pq, state_t *state, int priority) {
+void pq_unbuffered_add(pqueue_t *pq, state_t *state, int priority) {
 	pqnode_t *head = pq->head;
 	if (priority < head->prio) {
 		pq->head = construct_pqnode(priority, pq->head);
@@ -70,10 +73,21 @@ void pq_add(pqueue_t *pq, state_t *state, int priority) {
 	return;
 }
 
+void pq_add(pqueue_t *pq, state_t *state, int priority) {
+	if (cbuf_full(pq->buf)) {
+		bufnode_t *node = cbuf_remove(pq->buf);
+		pq_unbuffered_add(pq, node->ptr, node->prio);
+	}
+	cbuf_add(pq->buf, state, priority);
+}
+
 state_t *pq_take(pqueue_t *pq) {
 	pqnode_t *lowest = lowest_node(pq->head);
-	if (!lowest)
-		return NULL;
+	if (!lowest) {
+		if (cbuf_empty(pq->buf))
+			return NULL;
+		return cbuf_remove(pq->buf)->ptr;
+	}
 	return take(lowest->queue);
 }
 
