@@ -15,9 +15,6 @@ int xMax, yMax;
 void print_history(state_t *S, state_t *end, int offset) {
   if (!S)
     return;
-#if DEBUG
-  printf("s=%d, ", score(analyze_state(S, NULL), analyze_state(end, NULL)) - offset);
-#endif
   printf("%s", S->history);
 #if DEBUG_VERBOSE
   print_state(S);
@@ -138,12 +135,18 @@ int work(hashmap_t *map, balancer_t *balancer, state_t *start, state_t *end, ana
 
 int main(int argc, char *argv[])
 {
-  if (omp_get_max_threads() > PARALLEL_PROBLEM_MAX_THREADS) {
-    if (omp_get_num_procs() > PARALLEL_PROBLEM_MAX_THREADS)
-      omp_set_num_threads(PARALLEL_PROBLEM_MAX_THREADS);
-    else
-      omp_set_num_threads(omp_get_num_procs());
-  }
+#if PARALLEL_CONTROL_NUM_THREADS
+  omp_set_num_threads(omp_get_num_procs());
+  if (omp_get_max_threads() > PARALLEL_MAX_THREADS)
+      omp_set_num_threads(PARALLEL_MAX_THREADS);
+  if (omp_get_max_threads() < PARALLEL_MIN_THREADS)
+      omp_set_num_threads(PARALLEL_MIN_THREADS);
+#endif
+
+#if DEBUG
+  printf("running with %d threads\n", omp_get_max_threads());
+#endif
+
   int exit_code = 0;
   state_t *start, *end;
 
