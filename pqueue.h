@@ -17,12 +17,6 @@ typedef struct pqueue {
 	cbuf_t *buf;
 } pqueue_t;
 
-typedef struct balancer {
-	int num;
-	pqueue_t **queues;
-	omp_lock_t *locks;
-} balancer_t;
-
 pqnode_t *construct_pqnode(int prio, pqnode_t *higher) {
 	pqnode_t *head = malloc(sizeof(pqnode_t));
 	head->prio = prio;
@@ -38,18 +32,6 @@ pqueue_t *construct_pqueue(int bufsize) {
 	pq->head = construct_pqnode(5, pq->head);
 	pq->buf = new_buffer(bufsize);
 	return pq;
-}
-
-balancer_t *new_balancer(int num, int bufsize) {
-	balancer_t *balancer = malloc(sizeof(balancer_t));
-	balancer->queues = malloc(num * sizeof(pqueue_t*));
-	balancer->locks = malloc(num * sizeof(omp_lock_t));
-	for (int i=0; i < num; i++) {
-		balancer->queues[i] = construct_pqueue(bufsize);
-		omp_init_lock(balancer->locks + i);
-	}
-	balancer->num = num;
-	return balancer;
 }
 
 int num_tail(pqnode_t *head) {
@@ -106,41 +88,6 @@ state_t *pq_take(pqueue_t *pq) {
 		return cbuf_remove(pq->buf)->ptr;
 	}
 	return take(lowest->queue);
-}
-
-void indexed_pq_add(balancer_t *balancer, int index, state_t *state, int priority) {
-	omp_set_lock(balancer->locks + index);
-	pq_add(balancer->queues[index], state, priority);
-	omp_unset_lock(balancer->locks + index);
-}
-
-state_t *balancer_indexed_assign(balancer_t *balancer, int index) {
-	omp_set_lock(balancer->locks + index);
-	state_t *ret = pq_take(balancer->queues[index]);
-	omp_unset_lock(balancer->locks + index);
-	return ret;
-}
-
-state_t *balancer_fallback_assign(balancer_t *balancer, int index) {
-	state_t *ret = NULL;
-	for (int i=index; i < balancer->num; i++) {
-		ret = balancer_indexed_assign(balancer, i);
-		if (ret)
-			return ret;
-	}
-	for (int i=0; i < index; i++) {
-		ret = balancer_indexed_assign(balancer, i);
-		if (ret)
-			return ret;
-	}
-	return ret;
-}
-
-state_t *balancer_assign(balancer_t *balancer, int index) {
-    state_t *job = balancer_indexed_assign(balancer, index);
-    if (!job)
-      job = balancer_fallback_assign(balancer, index);
-	return job;
 }
 
 #endif

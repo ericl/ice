@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <state.h>
 #include <pqueue.h>
+#include <balancer.h>
 #include <omp.h>
 #include <unistd.h>
 #include <61c.h>
@@ -84,7 +85,7 @@ int work(hashmap_t *map, balancer_t *balancer, state_t *start, state_t *end, ana
             int s = score(A, B);
             if (s > to_be_added->prev->score)
               s += SCORE_REGRESSION_PENALTY;
-            indexed_pq_add(balancer, QUEUE_INDEX, to_be_added, s - offset);
+            balancer_add(balancer, QUEUE_INDEX, to_be_added, s - offset);
 #if DEBUG
             added++;
 #endif
@@ -168,7 +169,7 @@ int main(int argc, char *argv[])
   PrintAnalysis(A);
 #endif
   if (can_reach_state(A, B))
-    indexed_pq_add(balancer, 0, start, 0);
+    balancer_add(balancer, 0, start, 0);
   if (state_equal(start, end))
     return 0;
 
