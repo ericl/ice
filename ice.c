@@ -36,12 +36,12 @@ int work(hashmap_t *map, balancer_t *balancer, state_t *start, state_t *end, ana
 #define QUEUE_INDEX 0
 #endif
   state_t *current, *to_be_added;
-  int num_next;
+  int num_next, job_id;
   bool running = true, history_printed = false, waiting = false;
   int num_waiting = 0;
   #pragma omp parallel private(num_next, current, A, to_be_added) firstprivate(waiting) if (end->num_bits > PARALLEL_PROBLEM_SIZE_THRESHOLD && PARALLEL)
   while (running) {
-    current = balancer_assign(balancer, QUEUE_INDEX);
+    current = balancer_assign(balancer, QUEUE_INDEX, &job_id);
     if (current) {
       state_t *next = possible_next_states(current, &num_next);
 #if DEBUG
@@ -81,7 +81,7 @@ int work(hashmap_t *map, balancer_t *balancer, state_t *start, state_t *end, ana
             int s = score(A, B);
             if (s > current->score)
               s += SCORE_REGRESSION_PENALTY;
-            balancer_add(balancer, QUEUE_INDEX, to_be_added, s - offset);
+            balancer_return_result(balancer, job_id, to_be_added, s - offset);
 #if DEBUG
             added++;
 #endif
@@ -178,7 +178,7 @@ int main(int argc, char *argv[])
   PrintAnalysis(A);
 #endif
   if (can_reach_state(A, B))
-    balancer_add(balancer, 0, start, 0);
+    balancer_seed(balancer, start, 0);
   if (state_equal(start, end))
     return 0;
 
