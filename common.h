@@ -9,8 +9,8 @@ typedef enum {HORIZ, VERT} orientation;
 typedef enum {EAST, WEST, NORTH, SOUTH} direction;
 
 typedef struct coord {
-	int x : 8;
-	int y : 8;
+	unsigned int x : 8;
+	unsigned int y : 8;
 } coord_t;
 
 bool coord_set_equal(coord_t *A, coord_t *B, int num_bits) {
