@@ -87,9 +87,9 @@ bool put_edge(bit_t *array, int bound, state_t *S, orientation o, int xmax, int 
           buf[I++] = y;
       }
       if (end) {
-        // check memory bounds (in y multiples), if out of bounds false
         // we're sure this matches the edge exactly
         if ((d == WEST && bound == end->l.x) || (d == EAST && bound == end->r.x)) {
+          // check memory bounds (in y multiples), if out of bounds false
           lon = buf[0] <= end->r.y && end->array[bound + buf[0]*(end->r.x+1)].on;
           ron = buf[I-1] <= end->r.y && end->array[bound + buf[I-1]*(end->r.x+1)].on;
           for (int y=0; y <= end->r.y; y++)
@@ -120,11 +120,9 @@ bool put_edge(bit_t *array, int bound, state_t *S, orientation o, int xmax, int 
           buf[I++] = x;
       }
       if (end) {
-        // check memory bounds (e.g. if at end of array), also early bailout
-        if (buf[0] > end->r.x || buf[I-1] > end->r.x)
-          return false;
         // we're sure this matches the edge exactly
         if ((d == NORTH && bound == end->l.y) || (d == SOUTH && bound == end->r.y)) {
+          // check memory bounds (e.g. if at end of array)
           lon = buf[0] <= end->r.x && end->array[buf[0] + bound*(end->r.x+1)].on;
           ron = buf[I-1] <= end->r.x && end->array[buf[I-1] + bound*(end->r.x+1)].on;
           for (int x=0; x <= end->r.x; x++)
