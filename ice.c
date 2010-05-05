@@ -32,7 +32,7 @@ void print_history(state_t *S, state_t *end, int offset) {
 #endif
 }
 
-int work(hashmap_t *map, master_pq_t *master, state_t *start, state_t *end, analysis_t *A, analysis_t *B) {
+int work(hashmap_t *map, balancer_t *balancer, state_t *start, state_t *end, analysis_t *A, analysis_t *B) {
   int offset = score(A, B);
 #if DEBUG
   int perm = 0, added = 0, discard = 0, duplicate = 0;
@@ -48,9 +48,7 @@ int work(hashmap_t *map, master_pq_t *master, state_t *start, state_t *end, anal
   int num_waiting = 0;
   #pragma omp parallel private(num_next, current, A, to_be_added) firstprivate(waiting) if (end->num_bits > PARALLEL_PROBLEM_SIZE_THRESHOLD && PARALLEL)
   while (running) {
-    current = indexed_pq_take(master, QUEUE_INDEX);
-    if (!current)
-      current = global_pq_take(master, QUEUE_INDEX);
+    current = balancer_assign(balancer, QUEUE_INDEX);
     if (current) {
       state_t *next = possible_next_states(current, &num_next);
 #if DEBUG
@@ -86,7 +84,7 @@ int work(hashmap_t *map, master_pq_t *master, state_t *start, state_t *end, anal
             int s = score(A, B);
             if (s > to_be_added->prev->score)
               s += SCORE_REGRESSION_PENALTY;
-            indexed_pq_add(master, QUEUE_INDEX, to_be_added, s - offset);
+            indexed_pq_add(balancer, QUEUE_INDEX, to_be_added, s - offset);
 #if DEBUG
             added++;
 #endif
@@ -162,7 +160,7 @@ int main(int argc, char *argv[])
 #endif
 
   hashmap_t *map = create_hashmap();
-  master_pq_t *master = new_master_pq(omp_get_max_threads(), QUEUE_DELAY);
+  balancer_t *balancer = new_balancer(omp_get_max_threads(), QUEUE_DELAY);
 
   analysis_t *B = analyze_state(end, NULL);
   analysis_t *A = analyze_state(start, B);
@@ -170,11 +168,11 @@ int main(int argc, char *argv[])
   PrintAnalysis(A);
 #endif
   if (can_reach_state(A, B))
-    indexed_pq_add(master, 0, start, 0);
+    indexed_pq_add(balancer, 0, start, 0);
   if (state_equal(start, end))
     return 0;
 
-  exit_code = work(map, master, start, end, A, B);
+  exit_code = work(map, balancer, start, end, A, B);
 
   if (exit_code == 1)
     printf("IMPOSSIBLE\n");
@@ -215,6 +213,7 @@ state_t *ReadPBM(char *filename, int *xMax_ptr, int *yMax_ptr)
   setup_state(init_state);
   int size = 100;
   init_state->bits = malloc(size*sizeof(coord_t));
+  init_state->depth = 0;
   init_state->num_bits = 0;
   init_state->history = "read from file";
   coord_t *pos = init_state->bits;

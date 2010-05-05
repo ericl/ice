@@ -10,9 +10,10 @@
 typedef struct state {
   struct state *prev;
   char *history;
-  int num_bits;
   int score;
   coord_t *bits;
+  int num_bits : 16;
+  int depth : 16;
 } state_t;
 
 void setup_state(state_t *state) {
@@ -351,6 +352,7 @@ void replace_bit(state_t *S, coord_t old, coord_t dest, state_t *next, direction
   next->num_bits = S->num_bits;
   next->history = malloc(15*sizeof(char)); // that's room for 6-digit #'s
   next->prev = S;
+  next->depth = next->prev->depth + 1;
   sprintf(next->history, "%d %d %s", old.x, old.y, prettydir(dir));
 }
 
