@@ -11,6 +11,7 @@ i=0
 while [ $i -lt $X ]; do
 	./ice data/s44.pbm data/e44.pbm;
 	./ice data/start2.pbm data/end2-longtime.pbm &&
+	./ice data/startspiral.pbm data/endspiral.pbm &&
 	./ice data/start4.pbm data/end4-0.pbm &&
 	./ice data/start4.pbm data/end4-1.pbm &&
 	./ice data/start4.pbm data/end4-2.pbm &&
