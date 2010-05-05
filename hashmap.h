@@ -4,6 +4,7 @@
 #include <state.h>
 #include <common.h>
 #include <omp.h>
+#include <string.h>
 
 typedef struct entry {
 	coord_t *bits;
@@ -66,7 +67,12 @@ bool put(hashmap_t *map, coord_t *bits, int num_bits) {
 		map->maxlen = length + 1;
 	// ok, really have to add it now
 	entry = malloc(sizeof(entry_t));
+#if FREE_MORE_MEMORY
+	entry->bits = malloc(num_bits * sizeof(entry->bits));
+	memcpy(entry->bits, bits, num_bits * sizeof(coord_t));
+#else
 	entry->bits = bits;
+#endif
 	entry->next = map->entries[index];
 	map->entries[index] = entry;
 	omp_unset_lock(&map->lock);

@@ -8,7 +8,6 @@
 #include <string.h>
 
 typedef struct state {
-  struct state *prev;
   char *history;
   int score;
   coord_t *bits;
@@ -17,8 +16,6 @@ typedef struct state {
 } state_t;
 
 void setup_state(state_t *state) {
-  state->prev = NULL;
-  state->history = "undefined";
   state->score = SCORE_UNDEFINED_SCORE;
 }
 
@@ -198,13 +195,13 @@ int score_node_dist(state_t *S, state_t *end, analysis_t *S_a, analysis_t *end_a
   coord_t holes[num_bits];
 
   for (int i=0; i < num_bits; i++) {
-    coord_t e = end->bits[i];
+    register coord_t e = end->bits[i];
     if (e.x > S_a->r.x || e.y > S_a->r.y || !S_a->array[e.x + e.y * (S_a->r.x+1)].on) {
       holes[bp++] = e;
     }
   }
   for (int i=0; i < num_bits; i++) {
-    coord_t s = S->bits[i];
+    register coord_t s = S->bits[i];
     if (s.x > end_a->r.x || s.y > end_a->r.y || !end_a->array[s.x + s.y * (end_a->r.x+1)].on) {
       extras[hp++] = s;
     }
@@ -354,10 +351,13 @@ void replace_bit(state_t *S, coord_t old, coord_t dest, state_t *next, direction
   }
   setup_state(next);
   next->num_bits = S->num_bits;
-  next->history = malloc(15*sizeof(char)); // that's room for 6-digit #'s
-  next->prev = S;
-  next->depth = next->prev->depth + 1;
-  sprintf(next->history, "%d %d %s", old.x, old.y, prettydir(dir));
+  // that's room for 6-digit #'s
+  int len = strlen(S->history);
+  next->history = calloc(len + 15, sizeof(char));
+  strncpy(next->history, S->history, len);
+  int more = sprintf(next->history + len, "%d %d %s", old.x, old.y, prettydir(dir));
+  next->history[len + more] = '\n';
+  next->depth = S->depth + 1;
 }
 
 void bit_dir(state_t *S, coord_t bit, coord_t **west, coord_t **east, coord_t **north, coord_t **south) {

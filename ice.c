@@ -13,20 +13,12 @@ void print_state(state_t *);
 int xMax, yMax;
 
 void print_history(state_t *S, state_t *end, int offset) {
-#if DEBUG
   if (!S)
-#else
-  if (!S || !S->prev)
-#endif
     return;
-#if DEBUG
-  if (S->prev)
-#endif
-    print_history(S->prev, end, offset);
 #if DEBUG
   printf("s=%d, ", score(analyze_state(S, NULL), analyze_state(end, NULL)) - offset);
 #endif
-  printf("%s\n", S->history);
+  printf("%s", S->history);
 #if DEBUG_VERBOSE
   print_state(S);
   PrintPBM(S->bits, S->num_bits, xMax, yMax);
@@ -68,6 +60,10 @@ int work(hashmap_t *map, balancer_t *balancer, state_t *start, state_t *end, ana
           goto stop;
         }
         if (put(map, (next + i)->bits, (next + i)->num_bits)) {
+#if FREE_MORE_MEMORY
+          free((next + i)->bits);
+          free((next + i)->history);
+#endif
 #if DEBUG
           duplicate++;
 #endif
@@ -83,22 +79,35 @@ int work(hashmap_t *map, balancer_t *balancer, state_t *start, state_t *end, ana
             to_be_added = malloc(sizeof(state_t));
             memcpy(to_be_added, A->state, sizeof(state_t));
             int s = score(A, B);
-            if (s > to_be_added->prev->score)
+            if (s > current->score)
               s += SCORE_REGRESSION_PENALTY;
             balancer_add(balancer, QUEUE_INDEX, to_be_added, s - offset);
 #if DEBUG
             added++;
 #endif
           } else {
+#if FREE_MORE_MEMORY
+            free((next + i)->bits);
+            free((next + i)->history);
+#endif
 #if DEBUG
             discard++;
 #endif
           }
           free(A->array);
+#if FREE_MORE_MEMORY
           free(A);
+#endif
         }
       }
       free(next);
+#if FREE_MORE_MEMORY
+      if (current != start) {
+        free(current->bits);
+        free(current->history);
+        free(current);
+      }
+#endif
     } else {
       #pragma omp critical
       {
@@ -216,7 +225,7 @@ state_t *ReadPBM(char *filename, int *xMax_ptr, int *yMax_ptr)
   init_state->bits = malloc(size*sizeof(coord_t));
   init_state->depth = 0;
   init_state->num_bits = 0;
-  init_state->history = "read from file";
+  init_state->history = "";
   coord_t *pos = init_state->bits;
 
   fp = fopen(filename,"r");
