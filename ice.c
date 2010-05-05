@@ -79,6 +79,7 @@ int work(hashmap_t *map, balancer_t *balancer, state_t *start, state_t *end, ana
             to_be_added = malloc(sizeof(state_t));
             memcpy(to_be_added, A->state, sizeof(state_t));
             int s = score(A, B);
+            to_be_added->score = s;
             if (s > current->score)
               s += SCORE_REGRESSION_PENALTY;
             balancer_return_result(balancer, job_id, to_be_added, s - offset);
