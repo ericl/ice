@@ -219,7 +219,7 @@ int score_node_dist(state_t *S, state_t *end, analysis_t *S_a, analysis_t *end_a
         edgedist += b;
     }
   }
-  return edgedist;
+  return edgedist + hp;
 }
 
 analysis_t *analyze_state(state_t *S, analysis_t *end) {
