@@ -14,6 +14,7 @@ while [ $i -lt $X ]; do
 	./ice data/startspiral.pbm data/endspiral.pbm &&
 	./ice data/start_blocks.pbm data/end_blocks.pbm &&
 	./ice data/start_sliding.pbm data/end_sliding.pbm &&
+	./ice data/startFun.pbm data/endFun.pbm &&
 	./ice data/start4.pbm data/end4-0.pbm &&
 	./ice data/start4.pbm data/end4-1.pbm &&
 	./ice data/start4.pbm data/end4-2.pbm &&
