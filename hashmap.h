@@ -16,7 +16,9 @@ typedef struct hashmap {
 	int capacity;
 	int size;
 	int maxlen;
+#if PARALLEL
 	omp_lock_t lock;
+#endif
 } hashmap_t;
 
 hashmap_t *create_hashmap() {
@@ -25,7 +27,9 @@ hashmap_t *create_hashmap() {
 	map->maxlen = 0;
 	map->capacity = HASHMAP_DEFAULT_CAPACITY;
 	map->entries = calloc(HASHMAP_DEFAULT_CAPACITY, sizeof(entry_t));
+#if PARALLEL
 	omp_init_lock(&map->lock);
+#endif
 	return map;
 }
 
@@ -51,12 +55,16 @@ bool put(hashmap_t *map, coord_t *bits, int num_bits) {
 	if (index < 0)
 		index *= -1;
 	index %= map->capacity;
+#if PARALLEL
 	omp_set_lock(&map->lock);
+#endif
 	entry_t *entry = map->entries[index];
 	int length = 0;
 	while (entry) {
 		if (coord_set_equal(entry->bits, bits, num_bits)) {
+#if PARALLEL
 			omp_unset_lock(&map->lock);
+#endif
 			return true;
 		}
 		entry = entry->next;
@@ -75,22 +83,30 @@ bool put(hashmap_t *map, coord_t *bits, int num_bits) {
 #endif
 	entry->next = map->entries[index];
 	map->entries[index] = entry;
+#if PARALLEL
 	omp_unset_lock(&map->lock);
+#endif
 	return false;
 }
 
 bool contains(hashmap_t *map, coord_t *bits, int num_bits) {
 	int index = hash(bits, num_bits) % map->capacity;
+#if PARALLEL
 	omp_set_lock(&map->lock);
+#endif
 	entry_t *entry = map->entries[index];
 	while (entry) {
 		if (coord_set_equal(entry->bits, bits, num_bits)) {
+#if PARALLEL
 			omp_unset_lock(&map->lock);
+#endif
 			return true;
 		}
 		entry = entry->next;
 	}
+#if PARALLEL
 	omp_unset_lock(&map->lock);
+#endif
 	return false;
 }
 
