@@ -40,6 +40,11 @@ int work(hashmap_t *map, balancer_t *balancer, state_t *start, state_t *end, ana
   while (running) {
     current = balancer_assign(balancer, QUEUE_INDEX, &job_id);
     if (current) {
+      if (waiting) {
+          #pragma omp critical
+          num_waiting--;
+          waiting = false;
+      }
       state_t *next = possible_next_states(current, &num_next);
 #if DEBUG
       perm++;
@@ -106,16 +111,12 @@ int work(hashmap_t *map, balancer_t *balancer, state_t *start, state_t *end, ana
         free(current);
       }
 #endif
-    } else {
+    } else if (!waiting) {
+      waiting = true;
       #pragma omp critical
-      {
-        if (!waiting) {
-          waiting = true;
-          num_waiting++;
-        } else if (num_waiting >= omp_get_num_threads()) {
-          running = false;
-        }
-      }
+      num_waiting++;
+    } else if (num_waiting >= omp_get_num_threads()) {
+      running = false;
     }
     stop:;
   }
