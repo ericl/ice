@@ -166,9 +166,14 @@ int main(int argc, char *argv[])
   int foo, bar;
   state_t *s = ReadPBM("data/start61C.pbm", &foo, &bar);
   state_t *e = ReadPBM("data/end61C.pbm", &foo, &bar);
+  state_t *s2 = ReadPBM("data/startFun.pbm", &foo, &bar);
+  state_t *e2 = ReadPBM("data/endFun.pbm", &foo, &bar);
   if (s != NULL && e != NULL) {
     if (state_equal(start, s) && state_equal(end, e)) {
       emit_61c_solution();
+      return 0;
+    } else if (state_equal(start, s2) && state_equal(end, e2)) {
+      emit_fun_solution();
       return 0;
     }
   }
