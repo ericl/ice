@@ -18,9 +18,9 @@
 #define QUEUE_DELAY 80
 
 // enable recursive path tracing when scoring states
-#define TRACE 1
-#define MAX_TRACE_CALLS_PER_BIT 100
-#define TRACE_MAX_BITS 20
+#define TRACE 0
+#define MAX_TRACE_CALLS_PER_BIT 1000
+#define TRACE_MAX_BITS 30
 #define TRACE_DEPTH 3
 
 // these two tend to conflict with each other

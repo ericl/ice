@@ -32,6 +32,7 @@ void fisher_yates_shuffle(state_t *array, int n) {
 typedef struct bit {
   bool on : 1;
   bool possible : 1;
+  bool hole: 1;
 } bit_t;
 
 // NOTE: ice free()s the array later, do not access
@@ -191,6 +192,8 @@ bool state_equal(state_t *A, state_t *B) {
 bool trace_can_go(coord_t vector, direction dir, analysis_t *A, coord_t *dest) {
   switch (dir) {
     case NORTH:
+      if (A->array[vector.x + (vector.y - 1) * (A->r.x+1)].on)
+        return false;
       for (int y=vector.y - 2; y >= 0; y--) {
         if (A->array[vector.x + y * (A->r.x+1)].on) {
           dest->x = vector.x;
@@ -200,6 +203,8 @@ bool trace_can_go(coord_t vector, direction dir, analysis_t *A, coord_t *dest) {
       }
     break;
     case SOUTH:
+      if (A->array[vector.x + (1 + vector.y) * (A->r.x+1)].on)
+        return false;
       for (int y=vector.y + 2; y <= A->r.y; y++) {
         if (A->array[vector.x + y * (A->r.x+1)].on) {
           dest->x = vector.x;
@@ -209,6 +214,8 @@ bool trace_can_go(coord_t vector, direction dir, analysis_t *A, coord_t *dest) {
       }
     break;
     case EAST:
+      if (A->array[vector.x + 1 + vector.y * (A->r.x+1)].on)
+        return false;
       for (int x=vector.x + 2; x <= A->r.x; x++) {
         if (A->array[x + vector.y * (A->r.x+1)].on) {
           dest->x = x - 1;
@@ -218,6 +225,8 @@ bool trace_can_go(coord_t vector, direction dir, analysis_t *A, coord_t *dest) {
       }
     break;
     case WEST:
+      if (A->array[vector.x - 1 + vector.y * (A->r.x+1)].on)
+        return false;
       for (int x=vector.x - 2; x >= 0; x--) {
         if (A->array[x + vector.y * (A->r.x+1)].on) {
           dest->x = x + 1;
@@ -233,17 +242,9 @@ bool trace_can_go(coord_t vector, direction dir, analysis_t *A, coord_t *dest) {
 int trace(coord_t vector, direction dir, coord_t *holes, int num_holes, int limit, analysis_t *A) {
   if (limit <= 0)
     return 0;
-  bool done = false;
-  if (limit != 3) { // XXX special check to avoid another scan of holes
-    for (int i=0; i < num_holes; i++) {
-      if (vector.x == holes[i].x && vector.y == holes[i].y) {
-        done = true;
-        break;
-      }
-    }
-  }
-  if (done) {
-    return limit;
+  if (limit != TRACE_DEPTH) {
+    if (A->array[vector.x + vector.y * (A->r.x + 1)].hole)
+        return limit;
   }
   coord_t x;
   int score = 0;
@@ -268,13 +269,14 @@ int score_node_dist(state_t *S, state_t *end, analysis_t *S_a, analysis_t *end_a
   coord_t holes[num_bits];
 
   for (int i=0; i < num_bits; i++) {
-    register coord_t e = end->bits[i];
+    coord_t e = end->bits[i];
     if (e.x > S_a->r.x || e.y > S_a->r.y || !S_a->array[e.x + e.y * (S_a->r.x+1)].on) {
       holes[bp++] = e;
+      S_a->array[e.x + e.y*(S_a->r.x+1)].hole = true;
     }
   }
   for (int i=0; i < num_bits; i++) {
-    register coord_t s = S->bits[i];
+    coord_t s = S->bits[i];
     if (s.x > end_a->r.x || s.y > end_a->r.y || !end_a->array[s.x + s.y * (end_a->r.x+1)].on) {
       extras[hp++] = s;
     }
