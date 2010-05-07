@@ -45,6 +45,7 @@ while [ $i -lt $X ]; do
 	./ice data/start44.pbm data/end44c.pbm &&
 	./ice data/start44.pbm data/end44d.pbm &&
 	! ./ice data/startsparse.pbm data/endsparse.pbm &&
+	! ./ice data/starti.pbm data/endi.pbm &&
 	echo "ALL PASSED"
 	let i+=1
 done
