@@ -42,19 +42,18 @@ int hash_int(int h) {
 	return h;
 }
 
-int hash(coord_t *bits, int num_bits) {
+int hash(coord_t *bits, int num_bits, int capacity) {
 	int hash = 0;
 	for (int i=0; i < num_bits; i++)
 		hash += hash_int(bits[i].x << 16 | bits[i].y);
-	return hash;
+	if (hash < 0)
+		hash *= -1;
+	return hash % capacity;
 }
 
 // also acts as contains
 bool put(hashmap_t *map, coord_t *bits, int num_bits) {
-	int index = hash(bits, num_bits);
-	if (index < 0)
-		index *= -1;
-	index %= map->capacity;
+	int index = hash(bits, num_bits, map->capacity);
 #if PARALLEL
 	omp_set_lock(&map->lock);
 #endif
@@ -90,7 +89,7 @@ bool put(hashmap_t *map, coord_t *bits, int num_bits) {
 }
 
 bool contains(hashmap_t *map, coord_t *bits, int num_bits) {
-	int index = hash(bits, num_bits) % map->capacity;
+	int index = hash(bits, num_bits, map->capacity);
 #if PARALLEL
 	omp_set_lock(&map->lock);
 #endif

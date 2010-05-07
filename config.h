@@ -27,12 +27,11 @@
 // resulting in highly unstable times for certain puzzles
 //	* shuffling also tends to yield unstable times by itself
 //	* parallel local thread queues are rather stable
-#define PARALLEL_THREAD_LOCAL_QUEUES 1
+#define PARALLEL_THREAD_LOCAL_QUEUES 0
 #define SHUFFLE_NEW_STATES 0
 
 #define SCORE_UNDEFINED_SCORE 999999
 #define SCORE_REGRESSION_PENALTY 5
-#define MEMORIZE_61C_SOLUTION 1
 #define FREE_MORE_MEMORY 1
 
 #endif
