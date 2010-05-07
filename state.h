@@ -188,6 +188,79 @@ bool state_equal(state_t *A, state_t *B) {
   return coord_set_equal(A->bits, B->bits, A->num_bits);
 }
 
+bool trace_can_go(coord_t vector, direction dir, analysis_t *A, coord_t *dest) {
+  switch (dir) {
+    case NORTH:
+      for (int y=vector.y - 2; y >= 0; y--) {
+        if (A->array[vector.x + y * (A->r.x+1)].on) {
+          dest->x = vector.x;
+          dest->y = y + 1;
+          return true;
+        }
+      }
+    break;
+    case SOUTH:
+      for (int y=vector.y + 2; y <= A->r.y; y++) {
+        if (A->array[vector.x + y * (A->r.x+1)].on) {
+          dest->x = vector.x;
+          dest->y = y - 1;
+          return true;
+        }
+      }
+    break;
+    case EAST:
+      for (int x=vector.x + 2; x <= A->r.x; x++) {
+        if (A->array[x + vector.y * (A->r.x+1)].on) {
+          dest->x = x - 1;
+          dest->y = vector.y;
+          return true;
+        }
+      }
+    break;
+    case WEST:
+      for (int x=vector.x - 2; x >= 0; x--) {
+        if (A->array[x + vector.y * (A->r.x+1)].on) {
+          dest->x = x + 1;
+          dest->y = vector.y;
+          return true;
+        }
+      }
+    break;
+  }
+  return false;
+}
+
+int trace(coord_t vector, direction dir, coord_t *holes, int num_holes, int limit, analysis_t *A) {
+  if (limit <= 0)
+    return 0;
+  bool done = false;
+  if (limit != 3) { // XXX special check to avoid another scan of holes
+    for (int i=0; i < num_holes; i++) {
+      if (vector.x == holes[i].x && vector.y == holes[i].y) {
+        done = true;
+        break;
+      }
+    }
+  }
+  if (done) {
+    return limit;
+  }
+  coord_t x;
+  int score = 0;
+  if (dir == NORTH || dir == SOUTH) {
+    if (trace_can_go(vector, EAST, A, &x))
+      score += trace(x, EAST, holes, num_holes, limit - 1, A);
+    if (trace_can_go(vector, WEST, A, &x))
+      score += trace(x, WEST, holes, num_holes, limit - 1, A);
+  } else {
+    if (trace_can_go(vector, NORTH, A, &x))
+      score += trace(x, NORTH, holes, num_holes, limit - 1, A);
+    if (trace_can_go(vector, SOUTH, A, &x))
+      score += trace(x, SOUTH, holes, num_holes, limit - 1, A);
+  }
+  return score;
+}
+
 int score_node_dist(state_t *S, state_t *end, analysis_t *S_a, analysis_t *end_a) {
   int num_bits = S->num_bits;
   int bp = 0, hp = 0;
@@ -209,7 +282,26 @@ int score_node_dist(state_t *S, state_t *end, analysis_t *S_a, analysis_t *end_a
 
   int edgedist = 0;
 
+#if TRACE
+  static int trace_calls = 0;
+  coord_t dest;
+  dest.x = -4234; // arbitrary values to generate segfault
+  dest.y = -4234; // if accessed incorrectly
+#endif
   for (int i=0; i < hp; i++) {
+#if TRACE
+    if (num_bits < TRACE_MAX_BITS && trace_calls < MAX_TRACE_CALLS_PER_BIT * num_bits) {
+      trace_calls++;
+      if (trace_can_go(extras[i], EAST, S_a, &dest))
+        edgedist -= trace(dest, EAST, holes, hp, TRACE_DEPTH, S_a);
+      if (trace_can_go(extras[i], WEST, S_a, &dest))
+        edgedist -= trace(dest, WEST, holes, hp, TRACE_DEPTH, S_a);
+      if (trace_can_go(extras[i], NORTH, S_a, &dest))
+        edgedist -= trace(dest, NORTH, holes, hp, TRACE_DEPTH, S_a);
+      if (trace_can_go(extras[i], SOUTH, S_a, &dest))
+        edgedist -= trace(dest, SOUTH, holes, hp, TRACE_DEPTH, S_a);
+    }
+#endif
     for (int j=0; j < hp; j++) {
       int a = abs(holes[i].x - extras[j].x);
       int b = abs(holes[i].y - extras[j].y);

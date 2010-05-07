@@ -17,6 +17,12 @@
 // set higher to increase search breadth
 #define QUEUE_DELAY 80
 
+// enable recursive path tracing when scoring states
+#define TRACE 0
+#define MAX_TRACE_CALLS_PER_BIT 1000
+#define TRACE_MAX_BITS 30
+#define TRACE_DEPTH 3
+
 // these two tend to conflict with each other
 // resulting in highly unstable times for certain puzzles
 //	* shuffling also tends to yield unstable times by itself

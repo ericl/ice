@@ -144,7 +144,7 @@ int main(int argc, char *argv[])
       omp_set_num_threads(PARALLEL_MIN_THREADS);
 #endif
 
-#if DEBUG
+#if DEBUG && PARALLEL
   printf("running with %d threads\n", omp_get_max_threads());
 #endif
 
