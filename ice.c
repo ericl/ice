@@ -172,6 +172,10 @@ int main(int argc, char *argv[])
 #endif
   if (can_reach_state(A, B))
     balancer_seed(balancer, start, 0);
+  else {
+    printf("IMPOSSIBLE\n");
+    return 1;
+  }
   if (state_equal(start, end))
     return 0;
 
