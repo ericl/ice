@@ -10,7 +10,6 @@ typedef struct queue {
 	state_t **head;
 	state_t **tail;
 	int capacity;
-	int used;
 } queue_t;
 
 queue_t *construct_queue() {
@@ -30,6 +29,10 @@ void free_queue(queue_t *queue) {
 
 bool isempty(queue_t *queue) {
 	return queue->tail == queue->head;
+}
+
+int qsize(queue_t *queue) {
+	return queue->head - queue->tail;
 }
 
 void add(queue_t *queue, state_t *state) {

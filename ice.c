@@ -12,6 +12,13 @@ void PrintAnalysis(analysis_t *);
 void print_state(state_t *);
 int xMax, yMax;
 
+void histogram(pqnode_t *head) {
+  if (!head)
+    return;
+  histogram(head->higher);
+  printf("level %d has %d\n", head->prio, qsize(head->queue));
+}
+
 void print_history(state_t *S, state_t *end, int offset) {
   if (!S)
     return;
@@ -127,7 +134,9 @@ int work(hashmap_t *map, balancer_t *balancer, state_t *start, state_t *end, ana
   printf("%d states still queued\n", added - perm + 1);
   printf("%d is max hash table load\n", map->maxlen);
   printf("%d is hash table size\n", map->size);
-//  printf("%d is depth of priority queue\n", pq_stat_list_depth(pq));
+#endif
+#if DEBUG_VERBOSE
+  histogram(balancer->queues[0]->head);
 #endif
   if (history_printed)
     return 0;
