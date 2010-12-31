@@ -1,4 +1,4 @@
-CC = gcc-4.2
+CC = gcc
 default:
 	$(CC) -Wall -ffast-math -funroll-loops -O3 -fopenmp -lm -I. -Wall -std=c99 *.c -o ice
 	make debug
